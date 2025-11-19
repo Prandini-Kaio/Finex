@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Plus, Trash2, Upload, Download } from 'lucide-react'
 import {
   Bar,
@@ -18,6 +18,7 @@ import {
 import { useFinance } from '../context/FinanceContext'
 import type { FinanceFilters, PaymentMethod, Person, Transaction, TransactionPayload } from '../types/finance'
 import { buildInstallments } from '../utils/finance'
+import { MonthYearSelector } from '../components/MonthYearSelector'
 
 type FormState = {
   date: string
@@ -78,6 +79,13 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   } | null>(null)
 
   const isMonthClosed = closedMonths.includes(selectedMonth)
+
+  // Resetar form quando o modal abrir ou quando o mês selecionado mudar
+  useEffect(() => {
+    if (showModal) {
+      setForm(defaultForm(selectedMonth))
+    }
+  }, [showModal, selectedMonth])
 
   const handleFilterChange = (key: keyof FinanceFilters, value: string) => {
     onFiltersChange({
@@ -520,13 +528,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               </label>
               <label className="text-sm font-medium text-gray-700">
                 Competência
-                <input
-                  type="text"
-                  value={form.competency}
-                  onChange={(event) => setForm({ ...form, competency: event.target.value })}
-                  placeholder="MM/AAAA"
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
-                />
+                <div className="mt-1">
+                  <MonthYearSelector
+                    value={form.competency}
+                    onChange={(value) => setForm({ ...form, competency: value })}
+                  />
+                </div>
               </label>
               <label className="text-sm font-medium text-gray-700">
                 Tipo

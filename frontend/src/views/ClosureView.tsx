@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
 import type { Transaction } from '../types/finance'
+import { MonthYearSelector } from '../components/MonthYearSelector'
 
 interface ClosureViewProps {
   selectedMonth: string
@@ -68,6 +69,51 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
     }
   }, [cardExpenses])
 
+  // Balanço de pagamentos entre pessoas
+  const balanceByPerson = useMemo(() => {
+    // Despesas de Kaio (incluindo metade das despesas "Ambos")
+    const kaioExpenses = transactions
+      .filter((t) => t.type === 'Despesa' && (t.person === 'Kaio' || t.person === 'Ambos'))
+      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+
+    // Receitas de Kaio (incluindo metade das receitas "Ambos")
+    const kaioIncome = transactions
+      .filter((t) => t.type === 'Receita' && (t.person === 'Kaio' || t.person === 'Ambos'))
+      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+
+    // Despesas de Gabriela (incluindo metade das despesas "Ambos")
+    const gabrielaExpenses = transactions
+      .filter((t) => t.type === 'Despesa' && (t.person === 'Gabriela' || t.person === 'Ambos'))
+      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+
+    // Receitas de Gabriela (incluindo metade das receitas "Ambos")
+    const gabrielaIncome = transactions
+      .filter((t) => t.type === 'Receita' && (t.person === 'Gabriela' || t.person === 'Ambos'))
+      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+
+    const kaioBalance = kaioIncome - kaioExpenses
+    const gabrielaBalance = gabrielaIncome - gabrielaExpenses
+
+    // Quanto cada um deve pagar (apenas informativo, sem calcular transferências)
+    const kaioToPay = kaioBalance < 0 ? Math.abs(kaioBalance) : 0
+    const gabrielaToPay = gabrielaBalance < 0 ? Math.abs(gabrielaBalance) : 0
+
+    return {
+      kaio: {
+        expenses: kaioExpenses,
+        income: kaioIncome,
+        balance: kaioBalance,
+        toPay: kaioToPay,
+      },
+      gabriela: {
+        expenses: gabrielaExpenses,
+        income: gabrielaIncome,
+        balance: gabrielaBalance,
+        toPay: gabrielaToPay,
+      },
+    }
+  }, [transactions])
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between gap-4">
@@ -76,13 +122,7 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
           <p className="text-sm text-gray-500">Acompanhe cartões de crédito e finalize o mês selecionado.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <input
-            type="text"
-            value={selectedMonth}
-            onChange={(event) => onMonthChange(event.target.value)}
-            className="px-3 py-2 border rounded-lg"
-            placeholder="MM/AAAA"
-          />
+          <MonthYearSelector value={selectedMonth} onChange={onMonthChange} />
           {isClosed ? (
             <button
               onClick={() => actions.reopenMonth(selectedMonth)}
@@ -99,6 +139,103 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
             </button>
           )}
         </div>
+      </div>
+
+      {/* Balanço de Pagamentos - No topo */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="text-lg font-semibold mb-4">Balanço de Pagamentos - {selectedMonth}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Kaio */}
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-700 mb-3">Kaio</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Receitas:</span>
+                <span className="font-semibold text-green-600">R$ {balanceByPerson.kaio.income.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Despesas:</span>
+                <span className="font-semibold text-red-600">R$ {balanceByPerson.kaio.expenses.toFixed(2)}</span>
+              </div>
+              <div className="border-t pt-2 flex justify-between">
+                <span className="text-gray-700 font-medium">Saldo:</span>
+                <span
+                  className={`font-bold ${
+                    balanceByPerson.kaio.balance >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  R$ {balanceByPerson.kaio.balance.toFixed(2)}
+                </span>
+              </div>
+              {balanceByPerson.kaio.toPay > 0 && (
+                <div className="mt-2 pt-2 border-t border-red-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-red-700 font-medium">A pagar:</span>
+                    <span className="font-bold text-lg text-red-600">R$ {balanceByPerson.kaio.toPay.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Gabriela */}
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-700 mb-3">Gabriela</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Receitas:</span>
+                <span className="font-semibold text-green-600">R$ {balanceByPerson.gabriela.income.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Despesas:</span>
+                <span className="font-semibold text-red-600">R$ {balanceByPerson.gabriela.expenses.toFixed(2)}</span>
+              </div>
+              <div className="border-t pt-2 flex justify-between">
+                <span className="text-gray-700 font-medium">Saldo:</span>
+                <span
+                  className={`font-bold ${
+                    balanceByPerson.gabriela.balance >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  R$ {balanceByPerson.gabriela.balance.toFixed(2)}
+                </span>
+              </div>
+              {balanceByPerson.gabriela.toPay > 0 && (
+                <div className="mt-2 pt-2 border-t border-red-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-red-700 font-medium">A pagar:</span>
+                    <span className="font-bold text-lg text-red-600">R$ {balanceByPerson.gabriela.toPay.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Resumo informativo */}
+        {(balanceByPerson.kaio.toPay > 0 || balanceByPerson.gabriela.toPay > 0) && (
+          <div className="border-2 border-orange-200 bg-orange-50 rounded-lg p-4">
+            <p className="font-semibold text-lg text-gray-800 mb-2">Resumo do Fechamento:</p>
+            <div className="space-y-1 text-sm text-gray-700">
+              {balanceByPerson.kaio.toPay > 0 && (
+                <p>
+                  • <strong>Kaio</strong> deve pagar: <strong className="text-red-600">R$ {balanceByPerson.kaio.toPay.toFixed(2)}</strong>
+                </p>
+              )}
+              {balanceByPerson.gabriela.toPay > 0 && (
+                <p>
+                  • <strong>Gabriela</strong> deve pagar: <strong className="text-red-600">R$ {balanceByPerson.gabriela.toPay.toFixed(2)}</strong>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {balanceByPerson.kaio.toPay === 0 && balanceByPerson.gabriela.toPay === 0 && (
+          <div className="border-2 border-green-200 bg-green-50 rounded-lg p-4">
+            <p className="font-semibold text-green-700">✓ Ambos estão com saldo positivo! Nenhum pagamento necessário.</p>
+          </div>
+        )}
       </div>
 
       {/* Estatísticas gerais */}
