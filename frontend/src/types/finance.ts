@@ -85,6 +85,25 @@ export interface SimulationResult {
   interestRate: number
 }
 
+export interface RecurringTransaction {
+  id: number
+  description: string
+  type: TransactionType
+  paymentMethod: PaymentMethod
+  person: Person
+  category: string
+  value: number
+  startDate: string
+  endDate?: string
+  dayOfMonth: number
+  creditCardId?: number
+  creditCardName?: string
+  active: boolean
+  baseCompetency?: string
+}
+
+export type RecurringTransactionPayload = Omit<RecurringTransaction, 'id' | 'creditCardName'>
+
 export interface FinanceState {
   transactions: Transaction[]
   budgets: Budget[]
@@ -92,6 +111,7 @@ export interface FinanceState {
   closedMonths: string[]
   creditCards: CreditCard[]
   savingsGoals: SavingsGoal[]
+  recurringTransactions: RecurringTransaction[]
 }
 
 

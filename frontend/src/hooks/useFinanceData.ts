@@ -7,6 +7,8 @@ import type {
   CreditCardPayload,
   DepositPayload,
   FinanceState,
+  RecurringTransaction,
+  RecurringTransactionPayload,
   SavingsGoal,
   SavingsGoalPayload,
   Transaction,
@@ -20,6 +22,7 @@ const initialState: FinanceState = {
   closedMonths: [],
   creditCards: [],
   savingsGoals: [],
+  recurringTransactions: [],
 }
 
 interface FinanceActions {
@@ -37,6 +40,10 @@ interface FinanceActions {
   deleteSavingsGoal: (id: number) => Promise<void>
   addDeposit: (payload: DepositPayload) => Promise<SavingsGoal>
   importTransactions: (file: File) => Promise<{ totalProcessed: number; successCount: number; errorCount: number; errors: string[] }>
+  addRecurringTransaction: (payload: RecurringTransactionPayload) => Promise<RecurringTransaction>
+  updateRecurringTransaction: (id: number, payload: RecurringTransactionPayload) => Promise<RecurringTransaction>
+  deleteRecurringTransaction: (id: number) => Promise<void>
+  generateRecurringTransactions: (competency: string) => Promise<Transaction[]>
 }
 
 export function useFinanceData() {
@@ -47,13 +54,14 @@ export function useFinanceData() {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [transactions, budgets, categories, closedMonths, creditCards, savingsGoals] = await Promise.all([
+      const [transactions, budgets, categories, closedMonths, creditCards, savingsGoals, recurringTransactions] = await Promise.all([
         financeService.getTransactions(),
         financeService.getBudgets(),
         financeService.getCategories(),
         financeService.getClosedMonths(),
         financeService.getCreditCards(),
         financeService.getSavingsGoals(),
+        financeService.getRecurringTransactions(),
       ])
 
       setState({
@@ -63,6 +71,7 @@ export function useFinanceData() {
         closedMonths,
         creditCards,
         savingsGoals,
+        recurringTransactions,
       })
       setError(null)
     } catch (err) {
@@ -161,6 +170,29 @@ export function useFinanceData() {
     }
   }, [refresh])
 
+  const addRecurringTransaction = useCallback(async (payload: RecurringTransactionPayload) => {
+    const created = await financeService.createRecurringTransaction(payload)
+    await refresh()
+    return created
+  }, [refresh])
+
+  const updateRecurringTransaction = useCallback(async (id: number, payload: RecurringTransactionPayload) => {
+    const updated = await financeService.updateRecurringTransaction(id, payload)
+    await refresh()
+    return updated
+  }, [refresh])
+
+  const deleteRecurringTransaction = useCallback(async (id: number) => {
+    await financeService.deleteRecurringTransaction(id)
+    await refresh()
+  }, [refresh])
+
+  const generateRecurringTransactions = useCallback(async (competency: string) => {
+    const generated = await financeService.generateRecurringTransactions(competency)
+    await refresh()
+    return generated
+  }, [refresh])
+
   const actions: FinanceActions = useMemo(
     () => ({
       refresh,
@@ -177,6 +209,10 @@ export function useFinanceData() {
       deleteSavingsGoal,
       addDeposit,
       importTransactions,
+      addRecurringTransaction,
+      updateRecurringTransaction,
+      deleteRecurringTransaction,
+      generateRecurringTransactions,
     }),
     [
       refresh,
@@ -193,6 +229,10 @@ export function useFinanceData() {
       deleteSavingsGoal,
       addDeposit,
       importTransactions,
+      addRecurringTransaction,
+      updateRecurringTransaction,
+      deleteRecurringTransaction,
+      generateRecurringTransactions,
     ],
   )
 

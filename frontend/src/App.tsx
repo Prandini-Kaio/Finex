@@ -4,16 +4,18 @@ import { DEFAULT_FILTERS, filterTransactions, getCurrentCompetency } from './uti
 import type { FinanceFilters } from './types/finance'
 import { DashboardView } from './views/DashboardView'
 import { TransactionsView } from './views/TransactionsView'
+import { RecurringTransactionsView } from './views/RecurringTransactionsView'
 import { ClosureView } from './views/ClosureView'
 import { BudgetHealthView } from './views/BudgetHealthView'
 import { SavingsView } from './views/SavingsView'
 import { SettingsView } from './views/SettingsView'
 
-type FinanceView = 'dashboard' | 'transactions' | 'closure' | 'budget' | 'savings' | 'settings'
+type FinanceView = 'dashboard' | 'transactions' | 'recurring' | 'closure' | 'budget' | 'savings' | 'settings'
 
 const VIEW_LABELS: Record<FinanceView, string> = {
   dashboard: 'Dashboard',
   transactions: 'Lançamentos',
+  recurring: 'Lançamentos Fixos',
   closure: 'Fechamento',
   budget: 'Planejamento',
   savings: 'Poupança',
@@ -63,6 +65,13 @@ const ViewContainer: React.FC = () => {
             selectedMonth={selectedMonth}
             onMonthChange={setSelectedMonth}
             transactions={filteredTransactions}
+          />
+        )
+      case 'recurring':
+        return (
+          <RecurringTransactionsView
+            selectedMonth={selectedMonth}
+            onMonthChange={setSelectedMonth}
           />
         )
       case 'closure':

@@ -4,6 +4,8 @@ import type {
   CreditCard,
   CreditCardPayload,
   DepositPayload,
+  RecurringTransaction,
+  RecurringTransactionPayload,
   SavingsGoal,
   SavingsGoalPayload,
   Transaction,
@@ -127,6 +129,31 @@ export const financeService = {
       console.error('Erro no fetch:', error)
       throw error
     }
+  },
+  getRecurringTransactions(): Promise<RecurringTransaction[]> {
+    return httpClient<RecurringTransaction[]>('/api/recurring-transactions')
+  },
+  createRecurringTransaction(payload: RecurringTransactionPayload): Promise<RecurringTransaction> {
+    return httpClient<RecurringTransaction>('/api/recurring-transactions', {
+      method: 'POST',
+      body: payload,
+    })
+  },
+  updateRecurringTransaction(id: number, payload: RecurringTransactionPayload): Promise<RecurringTransaction> {
+    return httpClient<RecurringTransaction>(`/api/recurring-transactions/${id}`, {
+      method: 'PUT',
+      body: payload,
+    })
+  },
+  deleteRecurringTransaction(id: number): Promise<void> {
+    return httpClient<void>(`/api/recurring-transactions/${id}`, {
+      method: 'DELETE',
+    })
+  },
+  generateRecurringTransactions(competency: string): Promise<Transaction[]> {
+    return httpClient<Transaction[]>(`/api/recurring-transactions/generate?competency=${encodeURIComponent(competency)}`, {
+      method: 'POST',
+    })
   },
 }
 
