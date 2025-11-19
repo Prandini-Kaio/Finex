@@ -97,5 +97,35 @@ export const financeService = {
       body: payload,
     })
   },
+  async importTransactions(file: File): Promise<{ totalProcessed: number; successCount: number; errorCount: number; errors: string[] }> {
+    console.log('financeService.importTransactions - Iniciando upload do arquivo:', file.name)
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+    console.log('Enviando para:', `${API_URL}/api/transactions/import`)
+    
+    try {
+      const response = await fetch(`${API_URL}/api/transactions/import`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      console.log('Resposta recebida:', response.status, response.statusText)
+
+      if (!response.ok) {
+        const message = await response.text()
+        console.error('Erro na resposta:', message)
+        throw new Error(message || `HTTP ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('Resultado da importação:', result)
+      return result
+    } catch (error) {
+      console.error('Erro no fetch:', error)
+      throw error
+    }
+  },
 }
 

@@ -26,11 +26,19 @@ const ViewContainer: React.FC = () => {
   const [activeView, setActiveView] = useState<FinanceView>('dashboard')
   const [selectedMonth, setSelectedMonth] = useState(getCurrentCompetency())
   const [filters, setFilters] = useState<FinanceFilters>(DEFAULT_FILTERS)
+  const [lastView, setLastView] = useState<FinanceView>('dashboard')
 
-  // Recarrega dados quando muda de aba
+  // Recarrega dados apenas quando muda de aba (com delay para evitar conflitos)
   useEffect(() => {
-    actions.refresh()
-  }, [activeView, actions])
+    if (activeView !== lastView) {
+      setLastView(activeView)
+      // Delay pequeno para garantir que operações em andamento terminem
+      const timeout = setTimeout(() => {
+        actions.refresh()
+      }, 300)
+      return () => clearTimeout(timeout)
+    }
+  }, [activeView, lastView, actions])
 
   const filteredTransactions = useMemo(
     () => filterTransactions(state.transactions, selectedMonth, filters),

@@ -36,6 +36,7 @@ interface FinanceActions {
   addSavingsGoal: (payload: SavingsGoalPayload) => Promise<SavingsGoal>
   deleteSavingsGoal: (id: number) => Promise<void>
   addDeposit: (payload: DepositPayload) => Promise<SavingsGoal>
+  importTransactions: (file: File) => Promise<{ totalProcessed: number; successCount: number; errorCount: number; errors: string[] }>
 }
 
 export function useFinanceData() {
@@ -76,26 +77,8 @@ export function useFinanceData() {
     refresh()
   }, [refresh])
 
-  // Recarrega dados quando a aba/janela ganha foco
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        refresh()
-      }
-    }
-
-    const handleFocus = () => {
-      refresh()
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
-    }
-  }, [refresh])
+  // Removido: refresh automático ao ganhar foco
+  // Os dados serão atualizados apenas após ações do usuário (create, delete, etc)
 
   const addTransactions = useCallback(async (payloads: TransactionPayload[]) => {
     const created: Transaction[] = []
@@ -166,6 +149,18 @@ export function useFinanceData() {
     return updated
   }, [refresh])
 
+  const importTransactions = useCallback(async (file: File) => {
+    try {
+      const result = await financeService.importTransactions(file)
+      // Refresh apenas após a importação ser concluída
+      await refresh()
+      return result
+    } catch (error) {
+      // Não faz refresh em caso de erro para manter o estado
+      throw error
+    }
+  }, [refresh])
+
   const actions: FinanceActions = useMemo(
     () => ({
       refresh,
@@ -181,6 +176,7 @@ export function useFinanceData() {
       addSavingsGoal,
       deleteSavingsGoal,
       addDeposit,
+      importTransactions,
     }),
     [
       refresh,
@@ -196,6 +192,7 @@ export function useFinanceData() {
       addSavingsGoal,
       deleteSavingsGoal,
       addDeposit,
+      importTransactions,
     ],
   )
 

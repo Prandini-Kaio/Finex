@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Upload, Download } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -66,8 +66,16 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   } = useFinance()
 
   const [showModal, setShowModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [form, setForm] = useState<FormState>(defaultForm(selectedMonth))
   const [submitting, setSubmitting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{
+    totalProcessed: number
+    successCount: number
+    errorCount: number
+    errors: string[]
+  } | null>(null)
 
   const isMonthClosed = closedMonths.includes(selectedMonth)
 
@@ -202,17 +210,85 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
   const COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444']
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    event.preventDefault?.()
+    event.stopPropagation?.()
+    
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    console.log('Arquivo selecionado:', file.name, 'Tamanho:', file.size)
+    
+    setImporting(true)
+    setImportResult(null)
+    
+    try {
+      console.log('Chamando actions.importTransactions...')
+      const result = await actions.importTransactions(file)
+      console.log('Importação concluída:', result)
+      setImportResult(result)
+      if (result.errorCount === 0) {
+        setTimeout(() => {
+          setShowImportModal(false)
+          setImportResult(null)
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Erro ao importar:', error)
+      setImportResult({
+        totalProcessed: 0,
+        successCount: 0,
+        errorCount: 1,
+        errors: [error instanceof Error ? error.message : 'Erro ao importar arquivo'],
+      })
+    } finally {
+      setImporting(false)
+      // Reset file input
+      if (event.target) {
+        event.target.value = ''
+      }
+    }
+    
+    return false
+  }
+
+  const downloadTemplate = () => {
+    const template = `data,tipo,metodoPagamento,pessoa,categoria,descricao,valor,competencia,cartaoCredito,parcelas
+19/11/2025,Despesa,Crédito,Kaio,Alimentação,Supermercado,150.50,11/2025,Nubank,1
+20/11/2025,Receita,PIX,Gabriela,Salário,Salário mensal,5000.00,11/2025,,1`
+    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'template_importacao_lancamentos.csv')
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between gap-4">
         <h1 className="text-3xl font-bold text-gray-800">Lançamentos</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          disabled={isMonthClosed}
-        >
-          <Plus size={20} /> Novo Lançamento
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+            disabled={isMonthClosed}
+          >
+            <Upload size={20} /> Importar CSV
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            disabled={isMonthClosed}
+          >
+            <Plus size={20} /> Novo Lançamento
+          </button>
+        </div>
       </div>
 
       {/* Gráficos */}
@@ -571,6 +647,91 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                 Salvar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Importação */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4">
+            <h2 className="text-xl font-bold text-gray-800">Importar Lançamentos via CSV</h2>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+              <p className="font-semibold mb-2">Formato do CSV:</p>
+              <p className="mb-1">Colunas: data, tipo, metodoPagamento, pessoa, categoria, descricao, valor, competencia, cartaoCredito (opcional), parcelas (opcional)</p>
+              <p className="mb-1">• Data: DD/MM/YYYY ou YYYY-MM-DD</p>
+              <p className="mb-1">• Tipo: Despesa ou Receita</p>
+              <p className="mb-1">• Método de Pagamento: Crédito, Débito, PIX ou Dinheiro</p>
+              <p className="mb-1">• Pessoa: Kaio, Gabriela ou Ambos</p>
+              <p className="mb-1">• Valor: use ponto ou vírgula como separador decimal</p>
+            </div>
+
+            <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Selecione o arquivo CSV
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  disabled={importing}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={downloadTemplate}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  <Download size={16} /> Baixar Template
+                </button>
+                <button
+                  onClick={() => {
+                    setShowImportModal(false)
+                    setImportResult(null)
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  disabled={importing}
+                >
+                  Fechar
+                </button>
+              </div>
+            </form>
+
+            {importing && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <p className="text-blue-700">Processando importação...</p>
+              </div>
+            )}
+
+            {importResult && (
+              <div
+                className={`border rounded-lg p-4 ${
+                  importResult.errorCount === 0
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                }`}
+              >
+                <p className="font-semibold mb-2">Resultado da Importação:</p>
+                <p>Total processado: {importResult.totalProcessed}</p>
+                <p className="text-green-600">Sucesso: {importResult.successCount}</p>
+                {importResult.errorCount > 0 && (
+                  <>
+                    <p className="text-red-600">Erros: {importResult.errorCount}</p>
+                    <div className="mt-2 max-h-40 overflow-y-auto">
+                      <ul className="list-disc list-inside text-sm">
+                        {importResult.errors.map((error, index) => (
+                          <li key={index}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
