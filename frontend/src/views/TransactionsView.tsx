@@ -1,5 +1,20 @@
 import { useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  Legend,
+} from 'recharts'
 import { useFinance } from '../context/FinanceContext'
 import type { FinanceFilters, PaymentMethod, Person, Transaction, TransactionPayload } from '../types/finance'
 import { buildInstallments } from '../utils/finance'
@@ -102,6 +117,91 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     [transactions, creditCards],
   )
 
+  // Estatísticas para gráficos
+  const stats = useMemo(() => {
+    const expenses = transactions.filter((t) => t.type === 'Despesa').reduce((sum, t) => sum + t.value, 0)
+    const income = transactions.filter((t) => t.type === 'Receita').reduce((sum, t) => sum + t.value, 0)
+
+    const byPaymentMethod = transactions
+      .filter((t) => t.type === 'Despesa')
+      .reduce<Record<string, number>>((acc, transaction) => {
+        acc[transaction.paymentMethod] = (acc[transaction.paymentMethod] || 0) + transaction.value
+        return acc
+      }, {})
+
+    const byDay = transactions.reduce<Record<string, { expenses: number; income: number }>>((acc, transaction) => {
+      const date = new Date(transaction.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+      if (!acc[date]) {
+        acc[date] = { expenses: 0, income: 0 }
+      }
+      if (transaction.type === 'Despesa') {
+        acc[date].expenses += transaction.value
+      } else {
+        acc[date].income += transaction.value
+      }
+      return acc
+    }, {})
+
+    const installmentStats = transactions
+      .filter((t) => t.totalInstallments > 1)
+      .reduce<Record<number, number>>((acc, transaction) => {
+        acc[transaction.totalInstallments] = (acc[transaction.totalInstallments] || 0) + 1
+        return acc
+      }, {})
+
+    return {
+      expenses,
+      income,
+      byPaymentMethod,
+      byDay,
+      installmentStats,
+    }
+  }, [transactions])
+
+  // Gráfico de despesas vs receitas
+  const incomeExpenseChart = useMemo(() => {
+    return [
+      { name: 'Receitas', value: stats.income, fill: '#10b981' },
+      { name: 'Despesas', value: stats.expenses, fill: '#ef4444' },
+    ]
+  }, [stats])
+
+  // Gráfico de despesas por método de pagamento
+  const paymentMethodChart = useMemo(() => {
+    return Object.entries(stats.byPaymentMethod).map(([name, value]) => ({
+      name,
+      value,
+    }))
+  }, [stats])
+
+  // Gráfico de transações diárias
+  const dailyTransactionsChart = useMemo(() => {
+    return Object.entries(stats.byDay)
+      .map(([date, data]) => ({
+        date,
+        receitas: data.income,
+        despesas: data.expenses,
+      }))
+      .sort((a, b) => {
+        const dateA = new Date(a.date.split('/').reverse().join('-'))
+        const dateB = new Date(b.date.split('/').reverse().join('-'))
+        return dateA.getTime() - dateB.getTime()
+      })
+      .slice(-15) // Últimos 15 dias
+  }, [stats])
+
+  // Gráfico de distribuição de parcelas
+  const installmentChart = useMemo(() => {
+    return Object.entries(stats.installmentStats)
+      .map(([installments, count]) => ({
+        name: `${installments}x`,
+        value: count,
+      }))
+      .sort((a, b) => parseInt(a.name) - parseInt(b.name))
+  }, [stats])
+
+  const COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444']
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between gap-4">
@@ -114,6 +214,109 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
           <Plus size={20} /> Novo Lançamento
         </button>
       </div>
+
+      {/* Gráficos */}
+      {transactions.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Gráfico de receitas vs despesas */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-lg font-semibold mb-4">Receitas vs Despesas</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={incomeExpenseChart}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
+                <Bar dataKey="value">
+                  {incomeExpenseChart.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Gráfico de despesas por método de pagamento */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-lg font-semibold mb-4">Despesas por Método de Pagamento</h3>
+            {paymentMethodChart.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={paymentMethodChart}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={90}
+                    label={({ name, value }) => `${name}: R$ ${value.toFixed(2)}`}
+                  >
+                    {paymentMethodChart.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-sm text-gray-500 py-8">Nenhuma despesa registrada</p>
+            )}
+          </div>
+
+          {/* Gráfico de transações diárias */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-lg font-semibold mb-4">Transações Diárias (Últimos 15 dias)</h3>
+            {dailyTransactionsChart.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={dailyTransactionsChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" angle={-45} textAnchor="end" height={80} />
+                  <YAxis />
+                  <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="receitas"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    name="Receitas"
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="despesas"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    name="Despesas"
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-sm text-gray-500 py-8">Nenhuma transação registrada</p>
+            )}
+          </div>
+
+          {/* Gráfico de distribuição de parcelas */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-lg font-semibold mb-4">Distribuição de Parcelas</h3>
+            {installmentChart.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={installmentChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value: number) => `${value} transação(ões)`} />
+                  <Bar dataKey="value" fill="#8b5cf6" name="Quantidade" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-sm text-gray-500 py-8">Nenhuma transação parcelada</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white p-6 rounded-lg shadow-md space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

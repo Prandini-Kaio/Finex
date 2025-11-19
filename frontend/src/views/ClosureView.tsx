@@ -1,4 +1,15 @@
 import { useMemo } from 'react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  Legend,
+} from 'recharts'
 import { useFinance } from '../context/FinanceContext'
 import type { Transaction } from '../types/finance'
 
@@ -33,6 +44,30 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
     })
   }, [creditCards, transactions])
 
+  // Gráfico comparativo de uso dos cartões
+  const cardUsageChart = useMemo(() => {
+    return cardExpenses.map((card) => ({
+      name: card.name.length > 10 ? card.name.substring(0, 10) + '...' : card.name,
+      usado: card.expenses,
+      disponivel: card.available,
+      limite: card.limit,
+      uso: Math.min(card.usage, 100),
+    }))
+  }, [cardExpenses])
+
+  // Estatísticas gerais
+  const totalStats = useMemo(() => {
+    const totalLimit = cardExpenses.reduce((sum, card) => sum + card.limit, 0)
+    const totalExpenses = cardExpenses.reduce((sum, card) => sum + card.expenses, 0)
+    const totalAvailable = cardExpenses.reduce((sum, card) => sum + card.available, 0)
+    return {
+      totalLimit,
+      totalExpenses,
+      totalAvailable,
+      overallUsage: totalLimit > 0 ? (totalExpenses / totalLimit) * 100 : 0,
+    }
+  }, [cardExpenses])
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between gap-4">
@@ -65,6 +100,73 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
           )}
         </div>
       </div>
+
+      {/* Estatísticas gerais */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
+          <p className="text-sm text-gray-500 mb-1">Limite Total</p>
+          <p className="text-2xl font-bold text-blue-600">R$ {totalStats.totalLimit.toFixed(2)}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
+          <p className="text-sm text-gray-500 mb-1">Gasto Total</p>
+          <p className="text-2xl font-bold text-red-600">R$ {totalStats.totalExpenses.toFixed(2)}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
+          <p className="text-sm text-gray-500 mb-1">Disponível Total</p>
+          <p className="text-2xl font-bold text-green-600">R$ {totalStats.totalAvailable.toFixed(2)}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
+          <p className="text-sm text-gray-500 mb-1">Uso Geral</p>
+          <p className="text-2xl font-bold text-purple-600">{totalStats.overallUsage.toFixed(1)}%</p>
+        </div>
+      </div>
+
+      {/* Gráficos */}
+      {cardExpenses.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Gráfico comparativo de uso dos cartões */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-lg font-semibold mb-4">Uso dos Cartões</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={cardUsageChart}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                <YAxis />
+                <Tooltip
+                  formatter={(value: number, name: string) => {
+                    if (name === 'uso') return `${value.toFixed(1)}%`
+                    return `R$ ${value.toFixed(2)}`
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="usado" fill="#ef4444" name="Usado" />
+                <Bar dataKey="disponivel" fill="#10b981" name="Disponível" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Gráfico de percentual de uso */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-lg font-semibold mb-4">Percentual de Uso</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={cardUsageChart}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                <YAxis domain={[0, 100]} />
+                <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                <Bar dataKey="uso" fill="#8b5cf6" name="Uso (%)">
+                  {cardUsageChart.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.uso > 90 ? '#ef4444' : entry.uso > 70 ? '#f59e0b' : '#10b981'}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {cardExpenses.map((card) => (
