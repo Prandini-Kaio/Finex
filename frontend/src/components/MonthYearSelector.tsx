@@ -13,8 +13,10 @@ export const MonthYearSelector: React.FC<MonthYearSelectorProps> = ({
   className = '',
   yearsRange = 2,
 }) => {
-  const [month, year] = value.split('/')
   const currentYear = new Date().getFullYear()
+  // Garantir que o valor está no formato correto
+  const normalizedValue = value && value.includes('/') ? value : `${new Date().getMonth() + 1 < 10 ? '0' : ''}${new Date().getMonth() + 1}/${currentYear}`
+  const [month, year] = normalizedValue.split('/')
 
   const handleMonthChange = (newMonth: string) => {
     const selectedYear = year || currentYear.toString()

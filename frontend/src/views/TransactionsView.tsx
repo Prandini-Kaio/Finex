@@ -80,12 +80,19 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
   const isMonthClosed = closedMonths.includes(selectedMonth)
 
-  // Resetar form quando o modal abrir ou quando o mês selecionado mudar
+  // Resetar form quando o modal abrir
   useEffect(() => {
     if (showModal) {
       setForm(defaultForm(selectedMonth))
     }
   }, [showModal, selectedMonth])
+
+  // Handler para abrir o modal
+  const handleOpenModal = () => {
+    if (!isMonthClosed) {
+      setShowModal(true)
+    }
+  }
 
   const handleFilterChange = (key: keyof FinanceFilters, value: string) => {
     onFiltersChange({
@@ -290,9 +297,14 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             <Upload size={20} /> Importar CSV
           </button>
           <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            onClick={handleOpenModal}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+              isMonthClosed
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
             disabled={isMonthClosed}
+            type="button"
           >
             <Plus size={20} /> Novo Lançamento
           </button>
@@ -513,7 +525,14 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowModal(false)
+            }
+          }}
+        >
           <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
             <h2 className="text-xl font-bold text-gray-800">Novo lançamento</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

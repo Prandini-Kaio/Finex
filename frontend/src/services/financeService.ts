@@ -59,7 +59,8 @@ export const financeService = {
     })
   },
   async reopenMonth(month: string): Promise<string[]> {
-    return httpClient<string[]>(`/api/closed-months/${month}`, {
+    // Usar query parameter para evitar problemas com a barra na URL
+    return httpClient<string[]>(`/api/closed-months?month=${encodeURIComponent(month)}`, {
       method: 'DELETE',
     })
   },
