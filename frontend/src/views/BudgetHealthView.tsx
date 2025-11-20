@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   Bar,
   BarChart,
@@ -11,6 +11,7 @@ import {
   Legend,
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
+import { useTheme } from '../context/ThemeContext'
 import type { BudgetPayload, Person, Transaction } from '../types/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
 
@@ -32,8 +33,17 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
     state: { budgets, categories },
     actions,
   } = useFinance()
+  const { theme } = useTheme()
 
   const [form, setForm] = useState(defaultForm(selectedMonth))
+  
+  // Cores para dark mode
+  const isDark = theme.mode === 'dark'
+  const gridColor = isDark ? '#475569' : '#e5e7eb'
+  const textColor = isDark ? '#cbd5e1' : '#6b7280'
+  const tooltipBg = isDark ? '#1e293b' : '#ffffff'
+  const tooltipBorder = isDark ? '#334155' : '#e5e7eb'
+  const tooltipText = isDark ? '#e2e8f0' : '#111827'
 
   const filteredBudgets = useMemo(() => budgets.filter((budget) => budget.competency === selectedMonth), [budgets, selectedMonth])
 
@@ -254,16 +264,33 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
           </div>
 
           {/* Gráfico de distribuição por pessoa */}
-          <div className="bg-white rounded-lg shadow p-4 md:col-span-2">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700 md:col-span-2">
             <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Orçado vs Gasto por Pessoa</h3>
             {byPersonChart.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={byPersonChart}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
-                  <Legend />
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke={textColor}
+                    tick={{ fill: textColor }}
+                  />
+                  <YAxis 
+                    stroke={textColor}
+                    tick={{ fill: textColor }}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                    contentStyle={{
+                      backgroundColor: tooltipBg,
+                      border: `1px solid ${tooltipBorder}`,
+                      borderRadius: '8px',
+                    }}
+                    labelStyle={{ color: tooltipText }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ color: textColor }}
+                  />
                   <Bar dataKey="orcado" fill="#3b82f6" name="Orçado" />
                   <Bar dataKey="gasto" fill="#ef4444" name="Gasto" />
                 </BarChart>

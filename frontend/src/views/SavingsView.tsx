@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, TrendingUp, Target, Award, Sparkles, Calendar, DollarSign } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -36,6 +36,7 @@ export const SavingsView: React.FC = () => {
   const [depositGoalId, setDepositGoalId] = useState<number | null>(null)
   const [depositValue, setDepositValue] = useState('')
   const [depositDate, setDepositDate] = useState(new Date().toISOString().split('T')[0])
+  const [depositPerson, setDepositPerson] = useState<Person>('Kaio')
 
   const totalSaved = useMemo(() => savingsGoals.reduce((sum, goal) => sum + goal.currentAmount, 0), [savingsGoals])
   const totalTarget = useMemo(() => savingsGoals.reduce((sum, goal) => sum + goal.targetAmount, 0), [savingsGoals])
@@ -140,9 +141,11 @@ export const SavingsView: React.FC = () => {
       goalId: depositGoalId,
       amount: Number(depositValue),
       date: depositDate,
+      person: depositPerson,
     })
     setDepositGoalId(null)
     setDepositValue('')
+    setDepositPerson('Kaio')
   }
 
   return (
@@ -152,21 +155,53 @@ export const SavingsView: React.FC = () => {
         <p className="text-sm text-gray-500 dark:text-gray-400">Defina objetivos e acompanhe o progresso dos depósitos.</p>
       </div>
 
-      {/* Estatísticas gerais */}
+      {/* Estatísticas gerais - Cards visuais e motivadores */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total guardado</p>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">R$ {totalSaved.toFixed(2)}</p>
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-xl shadow-lg p-6 border-l-4 border-green-500 dark:border-green-600 transform hover:scale-105 transition-transform duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-full">
+              <DollarSign className="text-green-600 dark:text-green-400" size={24} />
+            </div>
+            <span className="text-3xl">💰</span>
+          </div>
+          <p className="text-sm font-medium text-green-700 dark:text-green-300 mb-1">Total Guardado</p>
+          <p className="text-3xl font-bold text-green-600 dark:text-green-400">R$ {totalSaved.toFixed(2)}</p>
+          <div className="mt-3 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+            <TrendingUp size={14} />
+            <span>Seu patrimônio está crescendo!</span>
+          </div>
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Meta total</p>
-          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">R$ {totalTarget.toFixed(2)}</p>
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl shadow-lg p-6 border-l-4 border-blue-500 dark:border-blue-600 transform hover:scale-105 transition-transform duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-full">
+              <Target className="text-blue-600 dark:text-blue-400" size={24} />
+            </div>
+            <span className="text-3xl">🎯</span>
+          </div>
+          <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">Meta Total</p>
+          <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">R$ {totalTarget.toFixed(2)}</p>
+          <div className="mt-3 flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+            <Target size={14} />
+            <span>{savingsGoals.length} objetivo{savingsGoals.length !== 1 ? 's' : ''} definido{savingsGoals.length !== 1 ? 's' : ''}</span>
+          </div>
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Progresso geral</p>
-          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl shadow-lg p-6 border-l-4 border-purple-500 dark:border-purple-600 transform hover:scale-105 transition-transform duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/50 rounded-full">
+              <Award className="text-purple-600 dark:text-purple-400" size={24} />
+            </div>
+            <span className="text-3xl">🏆</span>
+          </div>
+          <p className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Progresso Geral</p>
+          <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
             {totalTarget > 0 ? ((totalSaved / totalTarget) * 100).toFixed(1) : 0}%
           </p>
+          <div className="mt-3 w-full bg-purple-200 dark:bg-purple-800 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-full bg-purple-500 dark:bg-purple-600 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min((totalSaved / totalTarget) * 100, 100)}%` }}
+            />
+          </div>
         </div>
       </div>
 
@@ -281,8 +316,13 @@ export const SavingsView: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 space-y-4 border border-gray-200 dark:border-slate-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Novo objetivo</h3>
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl shadow-lg p-6 space-y-4 border-2 border-blue-200 dark:border-blue-700">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-full">
+            <Target className="text-blue-600 dark:text-blue-400" size={20} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Novo Objetivo</h3>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Nome
@@ -334,92 +374,234 @@ export const SavingsView: React.FC = () => {
             />
           </label>
         </div>
-        <div className="flex justify-end">
-          <button onClick={handleCreateGoal} className="px-4 py-2 bg-success text-white rounded-lg hover:opacity-90 transition-opacity">
-            <Plus size={16} className="inline mr-2" />
-            Criar objetivo
+        <div className="flex justify-end pt-2">
+          <button 
+            onClick={handleCreateGoal} 
+            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-blue-600 dark:to-indigo-600 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-indigo-600 dark:hover:from-blue-700 dark:hover:to-indigo-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Criar Objetivo
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {savingsGoals.map((goal) => {
           const percentage = (goal.currentAmount / goal.targetAmount) * 100
+          const isComplete = percentage >= 100
+          const isNearComplete = percentage >= 80 && percentage < 100
+          const remaining = goal.targetAmount - goal.currentAmount
+          const depositsCount = goal.deposits.length
+          
+          // Mensagem motivacional baseada no progresso
+          const getMotivationalMessage = () => {
+            if (isComplete) return { text: '🎉 Objetivo Conquistado!', color: 'text-green-600 dark:text-green-400' }
+            if (isNearComplete) return { text: '🔥 Quase lá! Continue assim!', color: 'text-orange-600 dark:text-orange-400' }
+            if (percentage >= 50) return { text: '💪 Mais da metade do caminho!', color: 'text-blue-600 dark:text-blue-400' }
+            if (percentage > 0) return { text: '✨ Bom começo! Continue!', color: 'text-purple-600 dark:text-purple-400' }
+            return { text: '🚀 Vamos começar essa jornada!', color: 'text-gray-600 dark:text-gray-400' }
+          }
+          
+          const motivation = getMotivationalMessage()
+          
           return (
-            <div key={goal.id} className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 space-y-3 border border-gray-100 dark:border-slate-700">
-              <div className="flex justify-between">
-                <div>
-                  <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">{goal.name}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{goal.description || 'Sem descrição'}</p>
+            <div 
+              key={goal.id} 
+              className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-4 border-2 transition-all duration-300 hover:shadow-xl ${
+                isComplete 
+                  ? 'border-green-500 dark:border-green-600 bg-gradient-to-br from-green-50/50 to-white dark:from-green-900/20 dark:to-slate-800' 
+                  : isNearComplete
+                  ? 'border-orange-400 dark:border-orange-600 bg-gradient-to-br from-orange-50/50 to-white dark:from-orange-900/20 dark:to-slate-800'
+                  : 'border-gray-200 dark:border-slate-700'
+              }`}
+            >
+              {/* Header com badge de conquista */}
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{goal.name}</h3>
+                    {isComplete && (
+                      <span className="px-2 py-1 bg-yellow-400 dark:bg-yellow-600 text-yellow-900 dark:text-yellow-100 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse">
+                        <Award size={12} /> Conquistado!
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{goal.description || 'Sem descrição'}</p>
+                  <p className={`text-sm font-semibold ${motivation.color} flex items-center gap-1`}>
+                    <Sparkles size={14} />
+                    {motivation.text}
+                  </p>
                 </div>
                 <button
                   onClick={() => actions.deleteSavingsGoal(goal.id)}
-                  className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                  className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                 >
                   <Trash2 size={18} />
                 </button>
               </div>
-              <div>
-                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
-                  <span>Progresso</span>
-                  <span>{percentage.toFixed(1)}%</span>
+
+              {/* Progresso visual melhorado */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Progresso</span>
+                  <span className={`font-bold text-lg ${
+                    isComplete ? 'text-green-600 dark:text-green-400' :
+                    isNearComplete ? 'text-orange-600 dark:text-orange-400' :
+                    'text-blue-600 dark:text-blue-400'
+                  }`}>
+                    {percentage.toFixed(1)}%
+                  </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3">
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden shadow-inner">
                   <div
-                    className="h-3 rounded-full bg-green-500 dark:bg-green-600"
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      isComplete 
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 dark:from-green-600 dark:to-emerald-600' 
+                        : isNearComplete
+                        ? 'bg-gradient-to-r from-orange-400 to-orange-500 dark:from-orange-500 dark:to-orange-600'
+                        : 'bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-blue-600 dark:to-indigo-600'
+                    }`}
                     style={{ width: `${Math.min(percentage, 100)}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  <span>R$ {goal.currentAmount.toFixed(2)}</span>
-                  <span>R$ {goal.targetAmount.toFixed(2)}</span>
+                <div className="flex justify-between items-center text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-green-600 dark:text-green-400">
+                      R$ {goal.currentAmount.toFixed(2)}
+                    </span>
+                    <span className="text-gray-400 dark:text-gray-500">de</span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      R$ {goal.targetAmount.toFixed(2)}
+                    </span>
+                  </div>
+                  {!isComplete && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Faltam R$ {remaining.toFixed(2)}
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                  onClick={() => setDepositGoalId(goal.id)}
-                >
-                  Adicionar depósito
-                </button>
+
+              {/* Timeline de depósitos */}
+              {goal.deposits.length > 0 && (
+                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <Calendar size={12} />
+                      Últimos depósitos ({depositsCount})
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {goal.deposits
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .slice(0, 3)
+                      .map((deposit, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 rounded px-2 py-1.5 border border-gray-200 dark:border-slate-600">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-600 dark:text-gray-300">
+                              {new Date(deposit.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                            </span>
+                            {deposit.person && (
+                              <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] font-medium">
+                                {deposit.person}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-semibold text-green-600 dark:text-green-400">
+                            +R$ {deposit.amount.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    {goal.deposits.length > 3 && (
+                      <p className="text-xs text-center text-gray-500 dark:text-gray-400 pt-1">
+                        +{goal.deposits.length - 3} depósito{goal.deposits.length - 3 !== 1 ? 's' : ''} anterior{goal.deposits.length - 3 !== 1 ? 'es' : ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Informações adicionais */}
+              <div className="flex flex-wrap gap-2 text-xs">
                 {goal.deadline && (
-                  <span className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                    <Calendar size={12} />
                     até {new Date(goal.deadline).toLocaleDateString('pt-BR')}
                   </span>
                 )}
+                <span className="px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                  {goal.owner}
+                </span>
+                {depositsCount > 0 && (
+                  <span className="px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                    {depositsCount} depósito{depositsCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+
+              {/* Botões de ação */}
+              <div className="flex gap-2 pt-2 border-t border-gray-200 dark:border-slate-700">
+                <button
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 dark:from-green-600 dark:to-emerald-600 text-white rounded-lg text-sm font-semibold hover:from-green-600 hover:to-emerald-600 dark:hover:from-green-700 dark:hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  onClick={() => setDepositGoalId(goal.id)}
+                >
+                  <Plus size={16} />
+                  Adicionar Depósito
+                </button>
               </div>
               {depositGoalId === goal.id && (
-                <div className="space-y-3 bg-gray-50 dark:bg-slate-700/50 border border-gray-200 dark:border-slate-600 rounded-lg p-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <label className="text-sm text-gray-700 dark:text-gray-300">
+                <div className="space-y-3 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-300 dark:border-green-700 rounded-lg p-4 animate-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="text-green-600 dark:text-green-400" size={18} />
+                    <h4 className="font-semibold text-green-700 dark:text-green-300">Novo Depósito</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Valor (R$)
                       <input
                         type="number"
                         step="0.01"
                         value={depositValue}
                         onChange={(event) => setDepositValue(event.target.value)}
-                        className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                        className="mt-1 w-full px-3 py-2 border-2 border-green-300 dark:border-green-700 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        placeholder="0.00"
                       />
                     </label>
-                    <label className="text-sm text-gray-700 dark:text-gray-300">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Data
                       <input
                         type="date"
                         value={depositDate}
                         onChange={(event) => setDepositDate(event.target.value)}
-                        className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                        className="mt-1 w-full px-3 py-2 border-2 border-green-300 dark:border-green-700 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       />
                     </label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Quem depositou
+                      <select
+                        value={depositPerson}
+                        onChange={(event) => setDepositPerson(event.target.value as Person)}
+                        className="mt-1 w-full px-3 py-2 border-2 border-green-300 dark:border-green-700 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      >
+                        <option value="Kaio">Kaio</option>
+                        <option value="Gabriela">Gabriela</option>
+                        <option value="Ambos">Ambos</option>
+                      </select>
+                    </label>
                   </div>
-                  <div className="flex justify-end gap-2">
-                    <button className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors" onClick={() => setDepositGoalId(null)}>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button 
+                      className="px-4 py-2 border-2 border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors" 
+                      onClick={() => setDepositGoalId(null)}
+                    >
                       Cancelar
                     </button>
                     <button
-                      className="px-3 py-2 bg-success text-white rounded-lg text-sm hover:opacity-90 transition-opacity"
+                      className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 dark:from-green-600 dark:to-emerald-600 text-white rounded-lg text-sm font-semibold hover:from-green-600 hover:to-emerald-600 dark:hover:from-green-700 dark:hover:to-emerald-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
                       onClick={handleDeposit}
                     >
-                      Confirmar
+                      <Plus size={16} />
+                      Confirmar Depósito
                     </button>
                   </div>
                 </div>
@@ -429,7 +611,12 @@ export const SavingsView: React.FC = () => {
         })}
       </div>
       {savingsGoals.length === 0 && (
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-6">Crie seu primeiro objetivo para começar a acompanhar.</p>
+        <div className="text-center py-12 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-600">
+          <div className="text-6xl mb-4">🎯</div>
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">Nenhum objetivo ainda</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Crie seu primeiro objetivo e comece sua jornada de poupança!</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Use o formulário acima para começar ✨</p>
+        </div>
       )}
     </div>
   )

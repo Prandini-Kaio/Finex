@@ -50,6 +50,7 @@ export interface SavingsDeposit {
   id: number
   amount: number
   date: string
+  person?: Person
 }
 
 export interface SavingsGoal {
@@ -70,6 +71,7 @@ export interface DepositPayload {
   goalId: number
   amount: number
   date: string
+  person: Person
 }
 
 export interface FinanceFilters {
