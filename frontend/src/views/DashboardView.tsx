@@ -279,12 +279,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between gap-4">
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Dashboard</h1>
         <div className="flex flex-wrap gap-2">
           <MonthYearSelector value={selectedMonth} onChange={onMonthChange} />
           <button
             onClick={() => setShowSimulator(true)}
-            className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+            className="px-4 py-2 rounded-lg bg-secondary text-white hover:opacity-90 transition-opacity"
           >
             🧮 Simulador
           </button>
@@ -322,47 +322,47 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       {/* Visualizador Rápido de Kaio e Gabriela */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Kaio */}
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg shadow-lg p-6 border-2 border-blue-300">
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg shadow-lg p-6 border-2 border-blue-300 dark:border-blue-600">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">💰 Kaio</h2>
-            <span className="text-sm font-semibold text-blue-700 bg-blue-200 px-3 py-1 rounded-full">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">💰 Kaio</h2>
+            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-200 dark:bg-blue-800 px-3 py-1 rounded-full">
               {selectedMonth}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white rounded-lg p-3 shadow border-l-4 border-green-500">
-              <p className="text-xs text-gray-600 mb-1">Entradas</p>
-              <p className="text-xl font-bold text-green-600">R$ {personStats.kaio.income.toFixed(2)}</p>
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow border-l-4 border-green-500 border border-gray-200 dark:border-slate-700">
+              <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Entradas</p>
+              <p className="text-xl font-bold text-green-600 dark:text-green-400">R$ {personStats.kaio.income.toFixed(2)}</p>
             </div>
-            <div className="bg-white rounded-lg p-3 shadow border-l-4 border-red-500">
-              <p className="text-xs text-gray-600 mb-1">Saídas</p>
-              <p className="text-xl font-bold text-red-600">R$ {personStats.kaio.expenses.toFixed(2)}</p>
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow border-l-4 border-red-500 border border-gray-200 dark:border-slate-700">
+              <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Saídas</p>
+              <p className="text-xl font-bold text-red-600 dark:text-red-400">R$ {personStats.kaio.expenses.toFixed(2)}</p>
             </div>
-            <div className="bg-white rounded-lg p-3 shadow border-l-4 border-blue-500">
-              <p className="text-xs text-gray-600 mb-1">Saldo</p>
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow border-l-4 border-blue-500 border border-gray-200 dark:border-slate-700">
+              <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Saldo</p>
               <p
                 className={`text-xl font-bold ${
-                  personStats.kaio.balance >= 0 ? 'text-blue-600' : 'text-orange-600'
+                  personStats.kaio.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'
                 }`}
               >
                 R$ {personStats.kaio.balance.toFixed(2)}
               </p>
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-blue-200">
+          <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600">
+              <span className="text-gray-600 dark:text-gray-300">
                 Economia:{' '}
-                <strong className="text-blue-700">
+                <strong className="text-blue-700 dark:text-blue-300">
                   {personStats.kaio.income > 0
                     ? ((personStats.kaio.balance / personStats.kaio.income) * 100).toFixed(1)
                     : 0}
                   %
                 </strong>
               </span>
-              <span className="text-gray-600">
+              <span className="text-gray-600 dark:text-gray-300">
                 Gasto:{' '}
-                <strong className="text-red-700">
+                <strong className="text-red-700 dark:text-red-300">
                   {personStats.kaio.income > 0
                     ? ((personStats.kaio.expenses / personStats.kaio.income) * 100).toFixed(1)
                     : 0}
@@ -427,8 +427,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-4">Despesas por Categoria</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Despesas por Categoria</h3>
           {categoryChart.length ? (
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
@@ -444,8 +444,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
             <EmptyState message="Nenhuma despesa para este mês" />
           )}
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-4">Despesas por Pessoa</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Despesas por Pessoa</h3>
           {personChart.length ? (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={personChart}>
@@ -469,8 +469,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       {/* Gráficos Anuais */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Gráfico de Gastos Anuais */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-4">Gastos Anuais - {new Date().getFullYear()}</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Gastos Anuais - {new Date().getFullYear()}</h3>
           {annualSpendingChart.some((d) => d.despesas > 0 || d.receitas > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={annualSpendingChart}>
@@ -489,8 +489,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
         </div>
 
         {/* Gráfico de Economia/Poupança Anual */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-4">Economia e Poupança - {new Date().getFullYear()}</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Economia e Poupança - {new Date().getFullYear()}</h3>
           {annualSavingsChart.some((d) => d.economia !== 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={annualSavingsChart}>
@@ -527,8 +527,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       {/* Gráficos Anuais */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Gráfico de Gastos Anuais */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-4">Gastos Anuais - {new Date().getFullYear()}</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Gastos Anuais - {new Date().getFullYear()}</h3>
           {annualSpendingChart.some((d) => d.despesas > 0 || d.receitas > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={annualSpendingChart}>
@@ -547,8 +547,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
         </div>
 
         {/* Gráfico de Economia/Poupança Anual */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-4">Economia e Poupança - {new Date().getFullYear()}</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Economia e Poupança - {new Date().getFullYear()}</h3>
           {annualSavingsChart.some((d) => d.economia !== 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={annualSavingsChart}>
@@ -583,12 +583,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       </div>
 
       {showSimulator && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4 border border-gray-200 dark:border-slate-700">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800">Simulador de Parcelas</h2>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Simulador de Parcelas</h2>
               <button
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 transition-colors"
                 onClick={() => {
                   setShowSimulator(false)
                   setSimulationResult(null)
@@ -600,20 +600,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
             </div>
 
             {/* Resumo do Mês Atual */}
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-              <h3 className="font-semibold text-gray-800 mb-3">Resumo do Mês - {selectedMonth}</h3>
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
+              <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-3">Resumo do Mês - {selectedMonth}</h3>
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p className="text-gray-600">Receitas</p>
-                  <p className="text-lg font-bold text-green-600">R$ {stats.income.toFixed(2)}</p>
+                  <p className="text-gray-600 dark:text-gray-300">Receitas</p>
+                  <p className="text-lg font-bold text-green-600 dark:text-green-400">R$ {stats.income.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600">Despesas</p>
-                  <p className="text-lg font-bold text-red-600">R$ {stats.expenses.toFixed(2)}</p>
+                  <p className="text-gray-600 dark:text-gray-300">Despesas</p>
+                  <p className="text-lg font-bold text-red-600 dark:text-red-400">R$ {stats.expenses.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600">Saldo Atual</p>
-                  <p className={`text-lg font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                  <p className="text-gray-600 dark:text-gray-300">Saldo Atual</p>
+                  <p className={`text-lg font-bold ${stats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
                     R$ {stats.balance.toFixed(2)}
                   </p>
                 </div>
@@ -622,23 +622,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
 
             {/* Formulário */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Valor
                 <input
                   type="number"
                   step="0.01"
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                   value={simulatorForm.value}
                   onChange={(event) => setSimulatorForm({ ...simulatorForm, value: event.target.value })}
                   placeholder="0.00"
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Parcelas
                 <select
                   value={simulatorForm.installments}
                   onChange={(event) => setSimulatorForm({ ...simulatorForm, installments: event.target.value })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 >
                   {[1, 2, 3, 6, 9, 12, 18, 24].map((value) => (
                     <option key={value} value={value}>
@@ -647,12 +647,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
                   ))}
                 </select>
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Juros mensais (%)
                 <input
                   type="number"
                   step="0.01"
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                   value={simulatorForm.interestRate}
                   onChange={(event) => setSimulatorForm({ ...simulatorForm, interestRate: event.target.value })}
                   placeholder="0.00"
@@ -662,7 +662,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
 
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 transition-colors"
                 onClick={() => {
                   setSimulationResult(null)
                   setSimulatorForm(defaultSimulator)
@@ -671,7 +671,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
                 Limpar
               </button>
               <button
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity"
                 onClick={handleSimulator}
               >
                 Calcular
@@ -682,49 +682,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
             {simulationResult && (
               <div className="space-y-4">
                 {/* Resumo Financeiro */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 mb-3">Resumo da Simulação</h3>
+                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-3">Resumo da Simulação</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div>
-                      <p className="text-gray-600">Valor da Parcela</p>
-                      <p className="text-xl font-bold text-blue-700">R$ {simulationResult.installmentValue.toFixed(2)}</p>
+                      <p className="text-gray-600 dark:text-gray-300">Valor da Parcela</p>
+                      <p className="text-xl font-bold text-blue-700 dark:text-blue-400">R$ {simulationResult.installmentValue.toFixed(2)}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Total com Juros</p>
-                      <p className="text-xl font-bold text-purple-700">R$ {simulationResult.totalWithInterest.toFixed(2)}</p>
+                      <p className="text-gray-600 dark:text-gray-300">Total com Juros</p>
+                      <p className="text-xl font-bold text-purple-700 dark:text-purple-400">R$ {simulationResult.totalWithInterest.toFixed(2)}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Juros Totais</p>
-                      <p className="text-xl font-bold text-red-700">R$ {simulationResult.totalInterest.toFixed(2)}</p>
+                      <p className="text-gray-600 dark:text-gray-300">Juros Totais</p>
+                      <p className="text-xl font-bold text-red-700 dark:text-red-400">R$ {simulationResult.totalInterest.toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Tabela de Parcelas */}
                 {simulationResult.installmentsTable && simulationResult.installmentsTable.length > 0 && (
-                  <div className="bg-white border rounded-lg overflow-hidden">
-                    <h3 className="font-semibold text-gray-800 p-4 bg-gray-50 border-b">Cronograma de Parcelas</h3>
+                  <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                    <h3 className="font-semibold text-gray-800 dark:text-gray-100 p-4 bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">Cronograma de Parcelas</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gray-50 dark:bg-slate-700">
                           <tr>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Parcela</th>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Mês/Ano</th>
-                            <th className="px-4 py-2 text-right text-sm font-medium text-gray-700">Valor</th>
-                            <th className="px-4 py-2 text-right text-sm font-medium text-gray-700">Saldo Projetado</th>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Parcela</th>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Mês/Ano</th>
+                            <th className="px-4 py-2 text-right text-sm font-medium text-gray-700 dark:text-gray-300">Valor</th>
+                            <th className="px-4 py-2 text-right text-sm font-medium text-gray-700 dark:text-gray-300">Saldo Projetado</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
+                        <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                           {simulationResult.installmentsTable.map((item, index) => {
                             const projectedBalance = stats.balance - simulationResult.installmentValue * (index + 1)
                             return (
-                              <tr key={item.installment} className="hover:bg-gray-50">
-                                <td className="px-4 py-2 text-sm text-gray-700">{item.installment}ª</td>
-                                <td className="px-4 py-2 text-sm text-gray-700">{item.month}</td>
-                                <td className="px-4 py-2 text-sm font-medium text-right text-red-600">
+                              <tr key={item.installment} className="hover:bg-gray-50 dark:hover:bg-slate-700">
+                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{item.installment}ª</td>
+                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{item.month}</td>
+                                <td className="px-4 py-2 text-sm font-medium text-right text-red-600 dark:text-red-400">
                                   R$ {item.value.toFixed(2)}
                                 </td>
-                                <td className={`px-4 py-2 text-sm font-medium text-right ${projectedBalance >= 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                                <td className={`px-4 py-2 text-sm font-medium text-right ${projectedBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
                                   R$ {projectedBalance.toFixed(2)}
                                 </td>
                               </tr>
@@ -751,12 +751,12 @@ const SummaryCard: React.FC<{
   accent: string
   helper?: string
 }> = ({ title, value, icon, accent, helper }) => (
-  <div className={`bg-white border-l-4 ${accent} rounded-lg p-4 shadow`}>
+  <div className={`bg-white dark:bg-slate-800 border-l-4 ${accent} rounded-lg p-4 shadow border border-gray-200 dark:border-slate-700`}>
     <div className="flex justify-between items-center">
       <div>
-        <p className="text-sm text-gray-500">{title}</p>
-        <p className="text-2xl font-bold">{value}</p>
-        {helper && <p className="text-xs text-gray-400 mt-1">{helper}</p>}
+        <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
+        <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{value}</p>
+        {helper && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{helper}</p>}
       </div>
       {icon}
     </div>

@@ -9,6 +9,7 @@ import { ClosureView } from './views/ClosureView'
 import { BudgetHealthView } from './views/BudgetHealthView'
 import { SavingsView } from './views/SavingsView'
 import { SettingsView } from './views/SettingsView'
+import { ThemeToggle } from './components/ThemeToggle'
 
 type FinanceView = 'dashboard' | 'transactions' | 'recurring' | 'closure' | 'budget' | 'savings' | 'settings'
 
@@ -101,7 +102,7 @@ const ViewContainer: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-gray-400">
         Carregando dados financeiros...
       </div>
     )
@@ -109,7 +110,7 @@ const ViewContainer: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 text-red-600 space-y-2">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 space-y-2">
         <p className="text-lg font-semibold">Não foi possível carregar o dashboard.</p>
         <p className="text-sm">{error}</p>
       </div>
@@ -117,20 +118,25 @@ const ViewContainer: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap gap-2">
-          {(Object.keys(VIEW_LABELS) as FinanceView[]).map((view) => (
-            <button
-              key={view}
-              onClick={() => setActiveView(view)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeView === view ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {VIEW_LABELS[view]}
-            </button>
-          ))}
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors">
+      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(VIEW_LABELS) as FinanceView[]).map((view) => (
+              <button
+                key={view}
+                onClick={() => setActiveView(view)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  activeView === view
+                    ? 'bg-primary text-white dark:bg-primary dark:text-white'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                {VIEW_LABELS[view]}
+              </button>
+            ))}
+          </div>
+          <ThemeToggle />
         </div>
       </header>
 

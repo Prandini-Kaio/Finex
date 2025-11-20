@@ -132,22 +132,22 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Fechamento mensal</h1>
-          <p className="text-sm text-gray-500">Acompanhe cartões de crédito e finalize o mês selecionado.</p>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Fechamento mensal</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Acompanhe cartões de crédito e finalize o mês selecionado.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <MonthYearSelector value={selectedMonth} onChange={onMonthChange} />
           {isClosed ? (
             <button
               onClick={() => actions.reopenMonth(selectedMonth)}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+              className="px-4 py-2 bg-warning text-white rounded-lg hover:opacity-90 transition-opacity"
             >
               Reabrir mês
             </button>
           ) : (
             <button
               onClick={() => actions.closeMonth(selectedMonth)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              className="px-4 py-2 bg-success text-white rounded-lg hover:opacity-90 transition-opacity"
             >
               Fechar mês
             </button>
@@ -156,36 +156,36 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
       </div>
 
       {/* Balanço de Pagamentos - No topo */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
         <h3 className="text-lg font-semibold mb-4">Balanço de Pagamentos - {selectedMonth}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Kaio */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-700 mb-3">Kaio</h4>
+          <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-gray-50 dark:bg-slate-700/50">
+            <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">Kaio</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Receitas:</span>
-                <span className="font-semibold text-green-600">R$ {balanceByPerson.kaio.income.toFixed(2)}</span>
+                <span className="text-gray-600 dark:text-gray-300">Receitas:</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">R$ {balanceByPerson.kaio.income.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Despesas:</span>
-                <span className="font-semibold text-red-600">R$ {balanceByPerson.kaio.expenses.toFixed(2)}</span>
+                <span className="text-gray-600 dark:text-gray-300">Despesas:</span>
+                <span className="font-semibold text-red-600 dark:text-red-400">R$ {balanceByPerson.kaio.expenses.toFixed(2)}</span>
               </div>
-              <div className="border-t pt-2 flex justify-between">
-                <span className="text-gray-700 font-medium">Saldo:</span>
+              <div className="border-t border-gray-200 dark:border-slate-600 pt-2 flex justify-between">
+                <span className="text-gray-700 dark:text-gray-200 font-medium">Saldo:</span>
                 <span
                   className={`font-bold ${
-                    balanceByPerson.kaio.balance >= 0 ? 'text-green-600' : 'text-red-600'
+                    balanceByPerson.kaio.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                   }`}
                 >
                   R$ {balanceByPerson.kaio.balance.toFixed(2)}
                 </span>
               </div>
               {balanceByPerson.kaio.toPay > 0 && (
-                <div className="mt-2 pt-2 border-t border-red-200">
+                <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
                   <div className="flex justify-between items-center">
-                    <span className="text-red-700 font-medium">A pagar:</span>
-                    <span className="font-bold text-lg text-red-600">R$ {balanceByPerson.kaio.toPay.toFixed(2)}</span>
+                    <span className="text-red-700 dark:text-red-400 font-medium">A pagar:</span>
+                    <span className="font-bold text-lg text-red-600 dark:text-red-400">R$ {balanceByPerson.kaio.toPay.toFixed(2)}</span>
                   </div>
                 </div>
               )}
@@ -193,32 +193,32 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
           </div>
 
           {/* Gabriela */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-700 mb-3">Gabriela</h4>
+          <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-gray-50 dark:bg-slate-700/50">
+            <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">Gabriela</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Receitas:</span>
-                <span className="font-semibold text-green-600">R$ {balanceByPerson.gabriela.income.toFixed(2)}</span>
+                <span className="text-gray-600 dark:text-gray-300">Receitas:</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">R$ {balanceByPerson.gabriela.income.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Despesas:</span>
-                <span className="font-semibold text-red-600">R$ {balanceByPerson.gabriela.expenses.toFixed(2)}</span>
+                <span className="text-gray-600 dark:text-gray-300">Despesas:</span>
+                <span className="font-semibold text-red-600 dark:text-red-400">R$ {balanceByPerson.gabriela.expenses.toFixed(2)}</span>
               </div>
-              <div className="border-t pt-2 flex justify-between">
-                <span className="text-gray-700 font-medium">Saldo:</span>
+              <div className="border-t border-gray-200 dark:border-slate-600 pt-2 flex justify-between">
+                <span className="text-gray-700 dark:text-gray-200 font-medium">Saldo:</span>
                 <span
                   className={`font-bold ${
-                    balanceByPerson.gabriela.balance >= 0 ? 'text-green-600' : 'text-red-600'
+                    balanceByPerson.gabriela.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                   }`}
                 >
                   R$ {balanceByPerson.gabriela.balance.toFixed(2)}
                 </span>
               </div>
               {balanceByPerson.gabriela.toPay > 0 && (
-                <div className="mt-2 pt-2 border-t border-red-200">
+                <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
                   <div className="flex justify-between items-center">
-                    <span className="text-red-700 font-medium">A pagar:</span>
-                    <span className="font-bold text-lg text-red-600">R$ {balanceByPerson.gabriela.toPay.toFixed(2)}</span>
+                    <span className="text-red-700 dark:text-red-400 font-medium">A pagar:</span>
+                    <span className="font-bold text-lg text-red-600 dark:text-red-400">R$ {balanceByPerson.gabriela.toPay.toFixed(2)}</span>
                   </div>
                 </div>
               )}
@@ -228,17 +228,17 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
 
         {/* Resumo informativo */}
         {(balanceByPerson.kaio.toPay > 0 || balanceByPerson.gabriela.toPay > 0) && (
-          <div className="border-2 border-orange-200 bg-orange-50 rounded-lg p-4">
-            <p className="font-semibold text-lg text-gray-800 mb-2">Resumo do Fechamento:</p>
-            <div className="space-y-1 text-sm text-gray-700">
+          <div className="border-2 border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/30 rounded-lg p-4">
+            <p className="font-semibold text-lg text-gray-800 dark:text-gray-100 mb-2">Resumo do Fechamento:</p>
+            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
               {balanceByPerson.kaio.toPay > 0 && (
                 <p>
-                  • <strong>Kaio</strong> deve pagar: <strong className="text-red-600">R$ {balanceByPerson.kaio.toPay.toFixed(2)}</strong>
+                  • <strong>Kaio</strong> deve pagar: <strong className="text-red-600 dark:text-red-400">R$ {balanceByPerson.kaio.toPay.toFixed(2)}</strong>
                 </p>
               )}
               {balanceByPerson.gabriela.toPay > 0 && (
                 <p>
-                  • <strong>Gabriela</strong> deve pagar: <strong className="text-red-600">R$ {balanceByPerson.gabriela.toPay.toFixed(2)}</strong>
+                  • <strong>Gabriela</strong> deve pagar: <strong className="text-red-600 dark:text-red-400">R$ {balanceByPerson.gabriela.toPay.toFixed(2)}</strong>
                 </p>
               )}
             </div>
@@ -246,29 +246,29 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         )}
 
         {balanceByPerson.kaio.toPay === 0 && balanceByPerson.gabriela.toPay === 0 && (
-          <div className="border-2 border-green-200 bg-green-50 rounded-lg p-4">
-            <p className="font-semibold text-green-700">✓ Ambos estão com saldo positivo! Nenhum pagamento necessário.</p>
+          <div className="border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/30 rounded-lg p-4">
+            <p className="font-semibold text-green-700 dark:text-green-400">✓ Ambos estão com saldo positivo! Nenhum pagamento necessário.</p>
           </div>
         )}
       </div>
 
       {/* Estatísticas gerais */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
-          <p className="text-sm text-gray-500 mb-1">Limite Total</p>
-          <p className="text-2xl font-bold text-blue-600">R$ {totalStats.totalLimit.toFixed(2)}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Limite Total</p>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">R$ {totalStats.totalLimit.toFixed(2)}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
-          <p className="text-sm text-gray-500 mb-1">Gasto Total</p>
-          <p className="text-2xl font-bold text-red-600">R$ {totalStats.totalExpenses.toFixed(2)}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Gasto Total</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">R$ {totalStats.totalExpenses.toFixed(2)}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
-          <p className="text-sm text-gray-500 mb-1">Disponível Total</p>
-          <p className="text-2xl font-bold text-green-600">R$ {totalStats.totalAvailable.toFixed(2)}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Disponível Total</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">R$ {totalStats.totalAvailable.toFixed(2)}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
-          <p className="text-sm text-gray-500 mb-1">Uso Geral</p>
-          <p className="text-2xl font-bold text-purple-600">{totalStats.overallUsage.toFixed(1)}%</p>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Uso Geral</p>
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{totalStats.overallUsage.toFixed(1)}%</p>
         </div>
       </div>
 
@@ -276,8 +276,8 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
       {cardExpenses.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Gráfico comparativo de uso dos cartões */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Uso dos Cartões</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Uso dos Cartões</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={cardUsageChart}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -297,8 +297,8 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
           </div>
 
           {/* Gráfico de percentual de uso */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Percentual de Uso</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Percentual de Uso</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={cardUsageChart}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -323,33 +323,37 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         {cardExpenses.map((card) => (
           <div
             key={card.id}
-            className="bg-white p-4 rounded-lg shadow border border-gray-100 space-y-3"
+            className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow border border-gray-100 dark:border-slate-700 space-y-3"
           >
             <div className="flex justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-600">{card.name}</p>
-                <p className="text-xs text-gray-400">{card.owner}</p>
+                <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">{card.name}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{card.owner}</p>
               </div>
               <span
                 className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                  card.usage > 90 ? 'bg-red-100 text-red-700' : card.usage > 70 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                  card.usage > 90 
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' 
+                    : card.usage > 70 
+                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' 
+                    : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                 }`}
               >
                 {card.usage.toFixed(1)}%
               </span>
             </div>
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
               <p>
-                Gasto no mês: <strong className="text-red-600">R$ {card.expenses.toFixed(2)}</strong>
+                Gasto no mês: <strong className="text-red-600 dark:text-red-400">R$ {card.expenses.toFixed(2)}</strong>
               </p>
               <p>
-                Limite total: <strong>R$ {card.limit.toFixed(2)}</strong>
+                Limite total: <strong className="text-gray-800 dark:text-gray-100">R$ {card.limit.toFixed(2)}</strong>
               </p>
               <p>
-                Disponível: <strong className="text-green-600">R$ {card.available.toFixed(2)}</strong>
+                Disponível: <strong className="text-green-600 dark:text-green-400">R$ {card.available.toFixed(2)}</strong>
               </p>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
               <div
                 className={`h-2 rounded-full ${
                   card.usage > 90 ? 'bg-red-500' : card.usage > 70 ? 'bg-yellow-500' : 'bg-green-500'
@@ -361,14 +365,14 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow p-4">
-        <h3 className="text-lg font-semibold mb-3">Meses fechados</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+        <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-100">Meses fechados</h3>
         {closedMonths.length === 0 ? (
-          <p className="text-sm text-gray-500">Nenhum mês foi fechado ainda.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum mês foi fechado ainda.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {closedMonths.map((month) => (
-              <span key={month} className="px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700">
+              <span key={month} className="px-3 py-1 rounded-full bg-gray-100 dark:bg-slate-700 text-sm text-gray-700 dark:text-gray-300">
                 {month}
               </span>
             ))}

@@ -30,11 +30,11 @@ export const MonthYearSelector: React.FC<MonthYearSelectorProps> = ({
 
   return (
     <div className={`flex gap-2 ${className}`}>
-      <select
-        value={month || '01'}
-        onChange={(e) => handleMonthChange(e.target.value)}
-        className="px-3 py-2 border rounded-lg"
-      >
+            <select
+              value={month || '01'}
+              onChange={(e) => handleMonthChange(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+            >
         <option value="01">Janeiro</option>
         <option value="02">Fevereiro</option>
         <option value="03">Março</option>
@@ -48,11 +48,11 @@ export const MonthYearSelector: React.FC<MonthYearSelectorProps> = ({
         <option value="11">Novembro</option>
         <option value="12">Dezembro</option>
       </select>
-      <select
-        value={year || currentYear.toString()}
-        onChange={(e) => handleYearChange(e.target.value)}
-        className="px-3 py-2 border rounded-lg"
-      >
+            <select
+              value={year || currentYear.toString()}
+              onChange={(e) => handleYearChange(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+            >
         {Array.from({ length: yearsRange * 2 + 1 }, (_, i) => {
           const year = currentYear - yearsRange + i
           return (

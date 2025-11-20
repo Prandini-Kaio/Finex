@@ -148,23 +148,23 @@ export const SavingsView: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-800">Poupança e investimentos</h1>
-        <p className="text-sm text-gray-500">Defina objetivos e acompanhe o progresso dos depósitos.</p>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Poupança e investimentos</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Defina objetivos e acompanhe o progresso dos depósitos.</p>
       </div>
 
       {/* Estatísticas gerais */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
-          <p className="text-sm text-gray-500 mb-1">Total guardado</p>
-          <p className="text-2xl font-bold text-green-600">R$ {totalSaved.toFixed(2)}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total guardado</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">R$ {totalSaved.toFixed(2)}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
-          <p className="text-sm text-gray-500 mb-1">Meta total</p>
-          <p className="text-2xl font-bold text-blue-600">R$ {totalTarget.toFixed(2)}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Meta total</p>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">R$ {totalTarget.toFixed(2)}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
-          <p className="text-sm text-gray-500 mb-1">Progresso geral</p>
-          <p className="text-2xl font-bold text-purple-600">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Progresso geral</p>
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
             {totalTarget > 0 ? ((totalSaved / totalTarget) * 100).toFixed(1) : 0}%
           </p>
         </div>
@@ -174,8 +174,8 @@ export const SavingsView: React.FC = () => {
       {savingsGoals.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Gráfico de distribuição por objetivo */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Distribuição por Objetivo</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Distribuição por Objetivo</h3>
             {distributionChart.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -197,13 +197,13 @@ export const SavingsView: React.FC = () => {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-sm text-gray-500 py-8">Nenhum depósito realizado ainda</p>
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-8">Nenhum depósito realizado ainda</p>
             )}
           </div>
 
           {/* Gráfico de progresso por objetivo */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Progresso por Objetivo</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Progresso por Objetivo</h3>
             {progressChart.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={progressChart}>
@@ -220,13 +220,13 @@ export const SavingsView: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-sm text-gray-500 py-8">Nenhum objetivo cadastrado</p>
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-8">Nenhum objetivo cadastrado</p>
             )}
           </div>
 
           {/* Gráfico de evolução temporal */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Evolução do Acumulado</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Evolução do Acumulado</h3>
             {evolutionChart.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={evolutionChart}>
@@ -257,13 +257,13 @@ export const SavingsView: React.FC = () => {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-sm text-gray-500 py-8">Nenhum depósito realizado ainda</p>
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-8">Nenhum depósito realizado ainda</p>
             )}
           </div>
 
           {/* Gráfico de depósitos mensais */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Depósitos Mensais</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Depósitos Mensais</h3>
             {monthlyDepositsChart.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={monthlyDepositsChart}>
@@ -275,53 +275,53 @@ export const SavingsView: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-sm text-gray-500 py-8">Nenhum depósito realizado ainda</p>
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-8">Nenhum depósito realizado ainda</p>
             )}
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-4 space-y-4">
-        <h3 className="text-lg font-semibold">Novo objetivo</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 space-y-4 border border-gray-200 dark:border-slate-700">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Novo objetivo</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="text-sm font-medium text-gray-700">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Nome
             <input
               type="text"
               value={goalForm.name}
               onChange={(event) => setGoalForm({ ...goalForm, name: event.target.value })}
-              className="mt-1 w-full px-3 py-2 border rounded-lg"
+              className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
             />
           </label>
-          <label className="text-sm font-medium text-gray-700">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Responsável
             <select
               value={goalForm.owner}
               onChange={(event) => setGoalForm({ ...goalForm, owner: event.target.value as Person })}
-              className="mt-1 w-full px-3 py-2 border rounded-lg"
+              className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
             >
               <option value="Kaio">Kaio</option>
               <option value="Gabriela">Gabriela</option>
               <option value="Ambos">Ambos</option>
             </select>
           </label>
-          <label className="text-sm font-medium text-gray-700">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Valor alvo (R$)
             <input
               type="number"
               step="0.01"
               value={goalForm.targetAmount}
               onChange={(event) => setGoalForm({ ...goalForm, targetAmount: event.target.value })}
-              className="mt-1 w-full px-3 py-2 border rounded-lg"
+              className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
             />
           </label>
-          <label className="text-sm font-medium text-gray-700">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Prazo
             <input
               type="date"
               value={goalForm.deadline}
               onChange={(event) => setGoalForm({ ...goalForm, deadline: event.target.value })}
-              className="mt-1 w-full px-3 py-2 border rounded-lg"
+              className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
             />
           </label>
           <label className="text-sm font-medium text-gray-700 md:col-span-2">
@@ -330,12 +330,12 @@ export const SavingsView: React.FC = () => {
               type="text"
               value={goalForm.description}
               onChange={(event) => setGoalForm({ ...goalForm, description: event.target.value })}
-              className="mt-1 w-full px-3 py-2 border rounded-lg"
+              className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
             />
           </label>
         </div>
         <div className="flex justify-end">
-          <button onClick={handleCreateGoal} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+          <button onClick={handleCreateGoal} className="px-4 py-2 bg-success text-white rounded-lg hover:opacity-90 transition-opacity">
             <Plus size={16} className="inline mr-2" />
             Criar objetivo
           </button>
@@ -346,77 +346,77 @@ export const SavingsView: React.FC = () => {
         {savingsGoals.map((goal) => {
           const percentage = (goal.currentAmount / goal.targetAmount) * 100
           return (
-            <div key={goal.id} className="bg-white rounded-lg shadow p-4 space-y-3 border border-gray-100">
+            <div key={goal.id} className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 space-y-3 border border-gray-100 dark:border-slate-700">
               <div className="flex justify-between">
                 <div>
-                  <p className="text-lg font-semibold text-gray-800">{goal.name}</p>
-                  <p className="text-sm text-gray-500">{goal.description || 'Sem descrição'}</p>
+                  <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">{goal.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{goal.description || 'Sem descrição'}</p>
                 </div>
                 <button
                   onClick={() => actions.deleteSavingsGoal(goal.id)}
-                  className="text-red-600 hover:text-red-800"
+                  className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
                 >
                   <Trash2 size={18} />
                 </button>
               </div>
               <div>
-                <div className="flex justify-between text-sm text-gray-600 mb-1">
+                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
                   <span>Progresso</span>
                   <span>{percentage.toFixed(1)}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3">
                   <div
-                    className="h-3 rounded-full bg-green-500"
+                    className="h-3 rounded-full bg-green-500 dark:bg-green-600"
                     style={{ width: `${Math.min(percentage, 100)}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
                   <span>R$ {goal.currentAmount.toFixed(2)}</span>
                   <span>R$ {goal.targetAmount.toFixed(2)}</span>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button
-                  className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                   onClick={() => setDepositGoalId(goal.id)}
                 >
                   Adicionar depósito
                 </button>
                 {goal.deadline && (
-                  <span className="px-3 py-2 rounded-lg bg-gray-100 text-sm text-gray-600">
+                  <span className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-sm text-gray-600 dark:text-gray-300">
                     até {new Date(goal.deadline).toLocaleDateString('pt-BR')}
                   </span>
                 )}
               </div>
               {depositGoalId === goal.id && (
-                <div className="space-y-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="space-y-3 bg-gray-50 dark:bg-slate-700/50 border border-gray-200 dark:border-slate-600 rounded-lg p-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <label className="text-sm text-gray-700">
+                    <label className="text-sm text-gray-700 dark:text-gray-300">
                       Valor (R$)
                       <input
                         type="number"
                         step="0.01"
                         value={depositValue}
                         onChange={(event) => setDepositValue(event.target.value)}
-                        className="mt-1 w-full px-3 py-2 border rounded-lg"
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                       />
                     </label>
-                    <label className="text-sm text-gray-700">
+                    <label className="text-sm text-gray-700 dark:text-gray-300">
                       Data
                       <input
                         type="date"
                         value={depositDate}
                         onChange={(event) => setDepositDate(event.target.value)}
-                        className="mt-1 w-full px-3 py-2 border rounded-lg"
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                       />
                     </label>
                   </div>
                   <div className="flex justify-end gap-2">
-                    <button className="px-3 py-2 border rounded-lg text-sm" onClick={() => setDepositGoalId(null)}>
+                    <button className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors" onClick={() => setDepositGoalId(null)}>
                       Cancelar
                     </button>
                     <button
-                      className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm"
+                      className="px-3 py-2 bg-success text-white rounded-lg text-sm hover:opacity-90 transition-opacity"
                       onClick={handleDeposit}
                     >
                       Confirmar
@@ -429,7 +429,7 @@ export const SavingsView: React.FC = () => {
         })}
       </div>
       {savingsGoals.length === 0 && (
-        <p className="text-center text-sm text-gray-500 py-6">Crie seu primeiro objetivo para começar a acompanhar.</p>
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-6">Crie seu primeiro objetivo para começar a acompanhar.</p>
       )}
     </div>
   )

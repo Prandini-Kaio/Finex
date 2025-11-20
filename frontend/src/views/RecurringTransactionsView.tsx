@@ -148,15 +148,15 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Lançamentos Fixos</h1>
-          <p className="text-sm text-gray-500">Configure lançamentos recorrentes que serão gerados automaticamente.</p>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Lançamentos Fixos</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Configure lançamentos recorrentes que serão gerados automaticamente.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <MonthYearSelector value={selectedMonth} onChange={onMonthChange} />
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+            className="flex items-center gap-2 bg-success text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             <Play size={20} /> {generating ? 'Gerando...' : 'Gerar para o Mês'}
           </button>
@@ -165,7 +165,7 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
               setEditingId(null)
               setShowModal(true)
             }}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
           >
             <Plus size={20} /> Novo Lançamento Fixo
           </button>
@@ -173,59 +173,61 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
       </div>
 
       {/* Lançamentos Ativos */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-b">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <span>✅</span> Lançamentos Ativos ({activeRecurrings.length})
-          </h2>
-        </div>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow border border-gray-200 dark:border-slate-700">
+          <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 px-6 py-4 border-b border-gray-200 dark:border-slate-600">
+            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <span>✅</span> Lançamentos Ativos ({activeRecurrings.length})
+            </h2>
+          </div>
         {activeRecurrings.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-700">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Descrição</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tipo</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Pessoa</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Categoria</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Valor</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Período</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Dia</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Ações</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Descrição</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Tipo</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Pessoa</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Categoria</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Valor</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Período</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Dia</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {activeRecurrings.map((recurring) => (
-                  <tr key={recurring.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-800">{recurring.description}</td>
+                  <tr key={recurring.id} className="hover:bg-gray-50 dark:hover:bg-slate-700">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">{recurring.description}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        recurring.type === 'Receita' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        recurring.type === 'Receita' 
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                          : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                       }`}>
                         {recurring.type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{recurring.person}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{recurring.category}</td>
-                    <td className="px-4 py-3 text-sm text-right font-medium text-gray-700">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{recurring.person}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{recurring.category}</td>
+                    <td className="px-4 py-3 text-sm text-right font-medium text-gray-700 dark:text-gray-300">
                       R$ {recurring.value.toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                       {new Date(recurring.startDate).toLocaleDateString('pt-BR')} até{' '}
                       {recurring.endDate ? new Date(recurring.endDate).toLocaleDateString('pt-BR') : '∞'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-center text-gray-600">{recurring.dayOfMonth}º</td>
+                    <td className="px-4 py-3 text-sm text-center text-gray-600 dark:text-gray-300">{recurring.dayOfMonth}º</td>
                     <td className="px-4 py-3 text-sm text-center">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => handleEdit(recurring)}
-                          className="px-3 py-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="px-3 py-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(recurring.id)}
-                          className="px-3 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="px-3 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -238,46 +240,46 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
           </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-gray-500">Nenhum lançamento fixo ativo</p>
+            <p className="text-gray-500 dark:text-gray-400">Nenhum lançamento fixo ativo</p>
           </div>
         )}
       </div>
 
       {/* Lançamentos Inativos */}
       {inactiveRecurrings.length > 0 && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b">
-            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow border border-gray-200 dark:border-slate-700">
+          <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-700 px-6 py-4 border-b border-gray-200 dark:border-slate-600">
+            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               <span>⏸️</span> Lançamentos Inativos ({inactiveRecurrings.length})
             </h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-700">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Descrição</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tipo</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Valor</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Ações</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Descrição</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Tipo</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Valor</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {inactiveRecurrings.map((recurring) => (
-                  <tr key={recurring.id} className="hover:bg-gray-50 opacity-60">
-                    <td className="px-4 py-3 text-sm text-gray-600">{recurring.description}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{recurring.type}</td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-600">R$ {recurring.value.toFixed(2)}</td>
+                  <tr key={recurring.id} className="hover:bg-gray-50 dark:hover:bg-slate-700 opacity-60">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{recurring.description}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{recurring.type}</td>
+                    <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-300">R$ {recurring.value.toFixed(2)}</td>
                     <td className="px-4 py-3 text-sm text-center">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => handleEdit(recurring)}
-                          className="px-3 py-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="px-3 py-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(recurring.id)}
-                          className="px-3 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="px-3 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -294,7 +296,7 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
       {/* Modal */}
       {showModal && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowModal(false)
@@ -302,38 +304,38 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
             }
           }}
         >
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4 border border-gray-200 dark:border-slate-700">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
               {editingId ? 'Editar Lançamento Fixo' : 'Novo Lançamento Fixo'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="text-sm font-medium text-gray-700 md:col-span-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
                 Descrição
                 <input
                   type="text"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                   placeholder="Ex: Aluguel, Salário, etc."
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Tipo
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value as TransactionType })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="Despesa">Despesa</option>
                   <option value="Receita">Receita</option>
                 </select>
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Pessoa
                 <select
                   value={form.person}
                   onChange={(e) => setForm({ ...form, person: e.target.value as Person })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="Kaio">Kaio</option>
                   <option value="Gabriela">Gabriela</option>
@@ -345,24 +347,24 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
                 <select
                   value={form.category}
                   onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 >
                   {categories.map((category) => (
                     <option key={category}>{category}</option>
                   ))}
                 </select>
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Valor (R$)
                 <input
                   type="number"
                   step="0.01"
                   value={form.value}
                   onChange={(e) => setForm({ ...form, value: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Dia do Mês
                 <input
                   type="number"
@@ -370,34 +372,34 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
                   max="31"
                   value={form.dayOfMonth}
                   onChange={(e) => setForm({ ...form, dayOfMonth: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                   placeholder="1-31"
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Data Início
                 <input
                   type="date"
                   value={form.startDate}
                   onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Data Fim (opcional)
                 <input
                   type="date"
                   value={form.endDate}
                   onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 />
               </label>
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Pagamento
                 <select
                   value={form.paymentMethod}
                   onChange={(e) => setForm({ ...form, paymentMethod: e.target.value as PaymentMethod })}
-                  className="mt-1 w-full px-3 py-2 border rounded-lg"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="Crédito">Crédito</option>
                   <option value="Débito">Débito</option>
@@ -406,12 +408,12 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
                 </select>
               </label>
               {form.paymentMethod === 'Crédito' && (
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Cartão de Crédito
                   <select
                     value={form.creditCard}
                     onChange={(e) => setForm({ ...form, creditCard: e.target.value })}
-                    className="mt-1 w-full px-3 py-2 border rounded-lg"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                   >
                     <option value="">Selecione</option>
                     {creditCards.map((card) => (
@@ -438,14 +440,14 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
                   setShowModal(false)
                   setEditingId(null)
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 transition-colors"
                 disabled={submitting}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSubmit}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                 disabled={submitting}
               >
                 {submitting ? 'Salvando...' : 'Salvar'}
