@@ -22,7 +22,7 @@ interface ClosureViewProps {
 
 export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonthChange, transactions }) => {
   const {
-    state: { creditCards, closedMonths },
+    state: { creditCards, closedMonths, transactions: allTransactions },
     actions,
   } = useFinance()
 
@@ -30,12 +30,26 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
 
   const cardExpenses = useMemo(() => {
     return creditCards.map((card) => {
-      const expenses = transactions
-        .filter(
-          (transaction) =>
-            transaction.paymentMethod === 'Crédito' && String(card.id) === transaction.creditCard && transaction.type === 'Despesa',
-        )
+      // Filtrar transações de crédito do mês selecionado que pertencem a este cartão
+      const expenses = allTransactions
+        .filter((transaction) => {
+          // Verificar se é do mês selecionado
+          if (transaction.competency !== selectedMonth) return false
+          
+          // Verificar se é despesa e método de pagamento crédito
+          if (transaction.type !== 'Despesa' || transaction.paymentMethod !== 'Crédito') return false
+          
+          // Verificar se pertence ao cartão
+          // O backend retorna creditCardId como número, mas também pode vir como creditCard (string)
+          const transactionCardId = transaction.creditCardId ?? (transaction.creditCard ? Number(transaction.creditCard) : null)
+          
+          if (transactionCardId === null || transactionCardId === undefined) return false
+          
+          // Comparar IDs (ambos são números)
+          return transactionCardId === card.id
+        })
         .reduce((sum, transaction) => sum + transaction.value, 0)
+      
       return {
         ...card,
         expenses,
@@ -43,7 +57,7 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         usage: card.limit > 0 ? (expenses / card.limit) * 100 : 0,
       }
     })
-  }, [creditCards, transactions])
+  }, [creditCards, allTransactions, selectedMonth])
 
   // Gráfico comparativo de uso dos cartões
   const cardUsageChart = useMemo(() => {

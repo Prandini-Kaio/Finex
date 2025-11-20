@@ -64,8 +64,14 @@ export function useFinanceData() {
         financeService.getRecurringTransactions(),
       ])
 
+      // Mapear creditCardId para creditCard para compatibilidade
+      const mappedTransactions = transactions.map((tx) => ({
+        ...tx,
+        creditCard: tx.creditCardId ? String(tx.creditCardId) : tx.creditCard,
+      }))
+
       setState({
-        transactions,
+        transactions: mappedTransactions,
         budgets,
         categories,
         closedMonths,

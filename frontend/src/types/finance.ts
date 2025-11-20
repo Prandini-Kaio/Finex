@@ -15,6 +15,8 @@ export interface Transaction {
   value: number
   competency: string
   creditCard?: string
+  creditCardId?: number // Campo do backend
+  creditCardName?: string // Campo do backend
   installments: number
   installmentNumber: number
   totalInstallments: number
