@@ -45,10 +45,12 @@ export async function httpClient<TResponse, TBody = unknown>(
   const API_URL = getApiUrl()
   const fullUrl = `${API_URL}${path}`
   
-  // Log sempre para debug
-  console.log(`[httpClient] ${method || 'GET'} ${fullUrl}`)
-  
+  // Desestrutura opções
   const { method = 'GET', body, headers } = options
+  
+  // Log sempre para debug
+  console.log(`[httpClient] ${method} ${fullUrl}`)
+  
   const response = await fetch(fullUrl, {
     method,
     headers: {
