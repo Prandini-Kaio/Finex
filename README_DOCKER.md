@@ -84,7 +84,9 @@ docker-compose up -d --build frontend
 - **Database**: finance
 - **User**: finance
 - **Password**: finance
-- **Volume**: Dados persistem em `postgres_data`
+- **Volume**: Dados persistem em `finance_postgres_data` (volume nomeado do Docker)
+  - Os dados são mantidos mesmo após parar/remover o container
+  - O volume é criado automaticamente na primeira execução
 
 ## Variáveis de ambiente
 
@@ -118,6 +120,43 @@ As configurações podem ser alteradas no arquivo `docker-compose.yml`:
 ```bash
 docker-compose down -v
 docker-compose up -d --build
+```
+
+**⚠️ ATENÇÃO:** O comando `docker-compose down -v` remove o volume do PostgreSQL, apagando **TODOS os dados** do banco de dados!
+
+### Gerenciar dados do PostgreSQL
+
+#### Ver volumes
+```bash
+docker volume ls
+```
+
+#### Ver detalhes do volume
+```bash
+docker volume inspect finance_postgres_data
+```
+
+#### Fazer backup do banco de dados
+```bash
+# Backup
+docker exec finance-postgres pg_dump -U finance finance > backup.sql
+
+# Restaurar backup
+docker exec -i finance-postgres psql -U finance finance < backup.sql
+```
+
+#### Remover apenas o volume (apaga todos os dados)
+```bash
+docker volume rm finance_postgres_data
+```
+
+#### Manter dados ao parar containers
+```bash
+# Parar sem remover volumes (dados são mantidos)
+docker-compose down
+
+# Parar e remover volumes (dados são APAGADOS)
+docker-compose down -v
 ```
 
 ## Desenvolvimento

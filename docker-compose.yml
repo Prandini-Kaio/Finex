@@ -17,6 +17,7 @@ services:
       retries: 5
     networks:
       - finance-network
+    restart: unless-stopped
 
   backend:
     build:
@@ -59,4 +60,6 @@ networks:
 
 volumes:
   postgres_data:
+    name: finance_postgres_data
+    driver: local
 

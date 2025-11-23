@@ -40,7 +40,7 @@ interface FinanceActions {
   deleteSavingsGoal: (id: number) => Promise<void>
   addDeposit: (payload: DepositPayload) => Promise<SavingsGoal>
   importTransactions: (file: File) => Promise<{ totalProcessed: number; successCount: number; errorCount: number; errors: string[] }>
-  exportTransactions: () => Promise<void>
+  exportTransactions: (startDate?: string, endDate?: string) => Promise<void>
   addRecurringTransaction: (payload: RecurringTransactionPayload) => Promise<RecurringTransaction>
   updateRecurringTransaction: (id: number, payload: RecurringTransactionPayload) => Promise<RecurringTransaction>
   deleteRecurringTransaction: (id: number) => Promise<void>
@@ -200,8 +200,8 @@ export function useFinanceData() {
     return generated
   }, [refresh])
 
-  const exportTransactions = useCallback(async () => {
-    await financeService.exportTransactions()
+  const exportTransactions = useCallback(async (startDate?: string, endDate?: string) => {
+    await financeService.exportTransactions(startDate, endDate)
   }, [])
 
   const actions: FinanceActions = useMemo(

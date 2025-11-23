@@ -68,9 +68,13 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
   const [showModal, setShowModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
   const [form, setForm] = useState<FormState>(defaultForm(selectedMonth))
   const [submitting, setSubmitting] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [exportStartDate, setExportStartDate] = useState('')
+  const [exportEndDate, setExportEndDate] = useState('')
+  const [exportAll, setExportAll] = useState(true)
   const [importResult, setImportResult] = useState<{
     totalProcessed: number
     successCount: number
@@ -297,14 +301,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             <Upload size={20} /> Importar CSV
           </button>
           <button
-            onClick={async () => {
-              try {
-                await actions.exportTransactions()
-              } catch (error) {
-                console.error('Erro ao exportar:', error)
-                alert('Erro ao exportar lançamentos. Verifique o console para mais detalhes.')
-              }
-            }}
+            onClick={() => setShowExportModal(true)}
             className="flex items-center gap-2 bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
           >
             <FileDown size={20} /> Exportar CSV
@@ -773,6 +770,113 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Exportação */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-md space-y-4 border border-gray-200 dark:border-slate-700">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Exportar Lançamentos</h2>
+              <button
+                onClick={() => {
+                  setShowExportModal(false)
+                  setExportAll(true)
+                  setExportStartDate('')
+                  setExportEndDate('')
+                }}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  id="exportAll"
+                  checked={exportAll}
+                  onChange={() => setExportAll(true)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <label htmlFor="exportAll" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                  Exportar todos os lançamentos
+                </label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  id="exportPeriod"
+                  checked={!exportAll}
+                  onChange={() => setExportAll(false)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <label htmlFor="exportPeriod" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                  Exportar por período
+                </label>
+              </div>
+
+              {!exportAll && (
+                <div className="grid grid-cols-2 gap-4 ml-7">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Data Inicial
+                    <input
+                      type="date"
+                      value={exportStartDate}
+                      onChange={(e) => setExportStartDate(e.target.value)}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                    />
+                  </label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Data Final
+                    <input
+                      type="date"
+                      value={exportEndDate}
+                      onChange={(e) => setExportEndDate(e.target.value)}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                    />
+                  </label>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-slate-700">
+                <button
+                  onClick={() => {
+                    setShowExportModal(false)
+                    setExportAll(true)
+                    setExportStartDate('')
+                    setExportEndDate('')
+                  }}
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await actions.exportTransactions(
+                        exportAll ? undefined : exportStartDate || undefined,
+                        exportAll ? undefined : exportEndDate || undefined
+                      )
+                      setShowExportModal(false)
+                      setExportAll(true)
+                      setExportStartDate('')
+                      setExportEndDate('')
+                    } catch (error) {
+                      console.error('Erro ao exportar:', error)
+                      alert('Erro ao exportar lançamentos. Verifique o console para mais detalhes.')
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
+                >
+                  <FileDown size={16} /> Exportar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

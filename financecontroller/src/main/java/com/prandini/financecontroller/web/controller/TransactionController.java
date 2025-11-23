@@ -17,6 +17,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -59,13 +61,41 @@ public class TransactionController {
     }
 
     @GetMapping(value = "/export", produces = MediaType.TEXT_PLAIN_VALUE)
-    public ResponseEntity<String> exportTransactions() {
-        List<com.prandini.financecontroller.domain.model.Transaction> transactions = transactionService.listAll();
+    public ResponseEntity<String> exportTransactions(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        
+        List<com.prandini.financecontroller.domain.model.Transaction> transactions;
+        String filename = "lancamentos_exportados.csv";
+        
+        if (startDate != null || endDate != null) {
+            // Filtro por período
+            LocalDate start = startDate != null ? LocalDate.parse(startDate, DateTimeFormatter.ISO_LOCAL_DATE) : null;
+            LocalDate end = endDate != null ? LocalDate.parse(endDate, DateTimeFormatter.ISO_LOCAL_DATE) : null;
+            transactions = transactionService.listByDateRange(start, end);
+            
+            // Ajusta o nome do arquivo com o período
+            if (start != null && end != null) {
+                filename = String.format("lancamentos_%s_a_%s.csv", 
+                    start.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+                    end.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+            } else if (start != null) {
+                filename = String.format("lancamentos_de_%s.csv", 
+                    start.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+            } else if (end != null) {
+                filename = String.format("lancamentos_ate_%s.csv", 
+                    end.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+            }
+        } else {
+            // Todos os lançamentos
+            transactions = transactionService.listAll();
+        }
+        
         String csvContent = csvExporter.exportToCsv(transactions);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("text/csv;charset=UTF-8"));
-        headers.setContentDispositionFormData("attachment", "lancamentos_exportados.csv");
+        headers.setContentDispositionFormData("attachment", filename);
 
         return ResponseEntity.ok()
                 .headers(headers)

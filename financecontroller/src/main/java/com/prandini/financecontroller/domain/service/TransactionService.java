@@ -11,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -55,6 +56,19 @@ public class TransactionService {
             throw new ResourceNotFoundException("Transação não encontrada: " + id);
         }
         transactionRepository.deleteById(id);
+    }
+
+    public List<Transaction> listByDateRange(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null && endDate == null) {
+            return listAll();
+        }
+        if (startDate == null) {
+            startDate = LocalDate.of(1900, 1, 1);
+        }
+        if (endDate == null) {
+            endDate = LocalDate.of(9999, 12, 31);
+        }
+        return transactionRepository.findByDateBetween(startDate, endDate);
     }
 }
 

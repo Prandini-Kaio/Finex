@@ -170,7 +170,7 @@ export const financeService = {
       method: 'POST',
     })
   },
-  async exportTransactions(): Promise<void> {
+  async exportTransactions(startDate?: string, endDate?: string): Promise<void> {
     // Usa a mesma lógica de detecção do httpClient
     function getApiUrl(): string {
       if (import.meta.env.VITE_API_URL) {
@@ -188,7 +188,15 @@ export const financeService = {
     
     // Calcula a URL da API dinamicamente
     const API_URL = getApiUrl()
-    const response = await fetch(`${API_URL}/api/transactions/export`, {
+    
+    // Constrói a URL com parâmetros opcionais
+    const params = new URLSearchParams()
+    if (startDate) params.append('startDate', startDate)
+    if (endDate) params.append('endDate', endDate)
+    const queryString = params.toString()
+    const url = `${API_URL}/api/transactions/export${queryString ? `?${queryString}` : ''}`
+    
+    const response = await fetch(url, {
       method: 'GET',
     })
 
@@ -198,9 +206,9 @@ export const financeService = {
     }
 
     const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
+    const blobUrl = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = url
+    link.href = blobUrl
     
     // Tenta obter o nome do arquivo do header Content-Disposition
     const contentDisposition = response.headers.get('Content-Disposition')
@@ -216,7 +224,7 @@ export const financeService = {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
+    window.URL.revokeObjectURL(blobUrl)
   },
 }
 
