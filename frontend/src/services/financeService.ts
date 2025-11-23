@@ -105,7 +105,22 @@ export const financeService = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+    // Usa a mesma lógica de detecção do httpClient
+    function getApiUrl(): string {
+      if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL
+      }
+      if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+          return 'http://localhost:8080'
+        }
+        return `http://${hostname}:8080`
+      }
+      return 'http://localhost:8080'
+    }
+    
+    const API_URL = getApiUrl()
     console.log('Enviando para:', `${API_URL}/api/transactions/import`)
     
     try {

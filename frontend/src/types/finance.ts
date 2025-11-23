@@ -25,12 +25,16 @@ export interface Transaction {
 
 export type TransactionPayload = Omit<Transaction, 'id'>
 
+export type BudgetType = 'VALUE' | 'PERCENTAGE'
+
 export interface Budget {
   id: number
   competency: string
   category: string
   person: Person
+  budgetType: BudgetType
   amount: number
+  percentage?: number
 }
 
 export type BudgetPayload = Omit<Budget, 'id'>

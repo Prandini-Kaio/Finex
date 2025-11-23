@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
 import { useTheme } from '../context/ThemeContext'
-import type { BudgetPayload, Person, Transaction } from '../types/finance'
+import type { BudgetPayload, BudgetType, Person, Transaction } from '../types/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
 
 interface BudgetHealthViewProps {
@@ -21,11 +21,17 @@ interface BudgetHealthViewProps {
   transactions: Transaction[]
 }
 
-const defaultForm = (competency: string): Omit<BudgetPayload, 'amount'> & { amount: string } => ({
+const defaultForm = (competency: string): Omit<BudgetPayload, 'amount' | 'budgetType' | 'percentage'> & { 
+  amount: string
+  budgetType: BudgetType
+  percentage: string
+} => ({
   competency,
   category: 'Alimentação',
   person: 'Kaio',
+  budgetType: 'VALUE',
   amount: '',
+  percentage: '',
 })
 
 export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMonth, onMonthChange, transactions }) => {
@@ -44,6 +50,48 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
   const tooltipBg = isDark ? '#1e293b' : '#ffffff'
   const tooltipBorder = isDark ? '#334155' : '#e5e7eb'
   const tooltipText = isDark ? '#e2e8f0' : '#111827'
+
+  // Calcular receitas da pessoa para o mês selecionado
+  const personIncome = useMemo(() => {
+    if (form.person === 'Ambos') {
+      // Para "Ambos", somar todas as receitas (Kaio, Gabriela e Ambos sem dividir)
+      return transactions
+        .filter((t) => {
+          if (t.type !== 'Receita') return false
+          if (t.competency !== selectedMonth) return false
+          return true
+        })
+        .reduce((sum, t) => sum + t.value, 0)
+    } else {
+      // Para pessoa específica, incluir suas receitas + metade das receitas "Ambos"
+      return transactions
+        .filter((t) => {
+          if (t.type !== 'Receita') return false
+          if (t.competency !== selectedMonth) return false
+          if (t.person === form.person) return true
+          if (t.person === 'Ambos') return true
+          return false
+        })
+        .reduce((sum, t) => {
+          // Se for "Ambos", dividir por 2
+          if (t.person === 'Ambos') {
+            return sum + t.value / 2
+          }
+          return sum + t.value
+        }, 0)
+    }
+  }, [transactions, selectedMonth, form.person])
+
+  // Calcular valor quando for porcentagem
+  const calculatedAmount = useMemo(() => {
+    if (form.budgetType === 'PERCENTAGE' && form.percentage) {
+      const percentage = parseFloat(form.percentage)
+      if (!isNaN(percentage) && personIncome > 0) {
+        return (personIncome * percentage) / 100
+      }
+    }
+    return null
+  }, [form.budgetType, form.percentage, personIncome])
 
   const filteredBudgets = useMemo(() => budgets.filter((budget) => budget.competency === selectedMonth), [budgets, selectedMonth])
 
@@ -122,12 +170,16 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
   const COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#ec4899']
 
   const handleSubmit = async () => {
-    if (!form.amount) return
+    if (form.budgetType === 'VALUE' && !form.amount) return
+    if (form.budgetType === 'PERCENTAGE' && !form.percentage) return
+    
     await actions.addBudget({
       competency: form.competency,
       category: form.category,
       person: form.person,
-      amount: Number(form.amount),
+      budgetType: form.budgetType,
+      amount: form.budgetType === 'VALUE' ? Number(form.amount) : (calculatedAmount || 0),
+      percentage: form.budgetType === 'PERCENTAGE' ? Number(form.percentage) : undefined,
     })
     setForm(defaultForm(selectedMonth))
   }
@@ -308,14 +360,12 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
           <span className="text-2xl">➕</span>
           <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Novo Orçamento</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Competência
-            <input
-              type="text"
+            <MonthYearSelector
               value={form.competency}
-              onChange={(event) => setForm({ ...form, competency: event.target.value })}
-              className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+              onChange={(value) => setForm({ ...form, competency: value })}
             />
           </label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -343,15 +393,65 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
             </select>
           </label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Valor (R$)
-            <input
-              type="number"
-              step="0.01"
-              value={form.amount}
-              onChange={(event) => setForm({ ...form, amount: event.target.value })}
+            Tipo de Orçamento
+            <select
+              value={form.budgetType}
+              onChange={(event) => setForm({ ...form, budgetType: event.target.value as BudgetType, amount: '', percentage: '' })}
               className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-            />
+            >
+              <option value="VALUE">Por Valor</option>
+              <option value="PERCENTAGE">Por Porcentagem</option>
+            </select>
           </label>
+          {form.budgetType === 'VALUE' ? (
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Valor (R$)
+              <input
+                type="number"
+                step="0.01"
+                value={form.amount}
+                onChange={(event) => setForm({ ...form, amount: event.target.value })}
+                className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                placeholder="0.00"
+              />
+            </label>
+          ) : (
+            <>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Porcentagem (%)
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={form.percentage}
+                  onChange={(event) => setForm({ ...form, percentage: event.target.value })}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                  placeholder="0.00"
+                />
+              </label>
+              <div className="flex flex-col justify-end">
+                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mb-1">
+                    Receitas de {form.person} no mês:
+                  </p>
+                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                    R$ {personIncome.toFixed(2)}
+                  </p>
+                  {calculatedAmount !== null && (
+                    <>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-2 mb-1">
+                        Valor calculado ({form.percentage}%):
+                      </p>
+                      <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                        R$ {calculatedAmount.toFixed(2)}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex justify-end">
           <button onClick={handleSubmit} className="px-4 py-2 bg-success text-white rounded-lg hover:opacity-90 transition-opacity">
@@ -398,7 +498,14 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-right font-medium text-gray-700 dark:text-gray-300">
-                        R$ {budget.amount.toFixed(2)}
+                        <div className="flex items-center justify-end gap-2">
+                          <span>R$ {budget.amount.toFixed(2)}</span>
+                          {budget.budgetType === 'PERCENTAGE' && budget.percentage && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                              {budget.percentage}%
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-right font-medium text-red-600 dark:text-red-400">
                         R$ {budget.spent.toFixed(2)}
