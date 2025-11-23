@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Plus, Trash2, Upload, Download } from 'lucide-react'
+import { Plus, Trash2, Upload, Download, FileDown } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -295,6 +295,19 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             disabled={isMonthClosed}
           >
             <Upload size={20} /> Importar CSV
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await actions.exportTransactions()
+              } catch (error) {
+                console.error('Erro ao exportar:', error)
+                alert('Erro ao exportar lançamentos. Verifique o console para mais detalhes.')
+              }
+            }}
+            className="flex items-center gap-2 bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+          >
+            <FileDown size={20} /> Exportar CSV
           </button>
           <button
             onClick={handleOpenModal}

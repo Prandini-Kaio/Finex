@@ -170,5 +170,52 @@ export const financeService = {
       method: 'POST',
     })
   },
+  async exportTransactions(): Promise<void> {
+    // Usa a mesma lógica de detecção do httpClient
+    function getApiUrl(): string {
+      if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL
+      }
+      if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+          return 'http://localhost:8080'
+        }
+        return `http://${hostname}:8080`
+      }
+      return 'http://localhost:8080'
+    }
+    
+    const API_URL = getApiUrl()
+    const response = await fetch(`${API_URL}/api/transactions/export`, {
+      method: 'GET',
+    })
+
+    if (!response.ok) {
+      const message = await response.text()
+      throw new Error(message || `HTTP ${response.status}`)
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    
+    // Tenta obter o nome do arquivo do header Content-Disposition
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let filename = 'lancamentos_exportados.csv'
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '')
+      }
+    }
+    
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  },
 }
 
