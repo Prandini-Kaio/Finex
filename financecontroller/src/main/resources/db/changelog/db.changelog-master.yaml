@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - include:
+      file: classpath:db/changelog/db.changelog-001-initial-schema.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-002-add-person-to-deposits.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-003-add-budget-type-and-percentage.yaml
+

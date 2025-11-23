@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-person-to-savings-deposits
+      author: system
+      changes:
+        - addColumn:
+            tableName: savings_deposits
+            columns:
+              - column:
+                  name: person
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: true
+

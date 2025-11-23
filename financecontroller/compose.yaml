@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      POSTGRES_DB: finance
+      POSTGRES_PASSWORD: finance
+      POSTGRES_USER: finance
+    ports:
+      - '5432'

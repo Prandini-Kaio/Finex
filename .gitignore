@@ -1,0 +1,41 @@
+# Maven
+financecontroller/target/
+financecontroller/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Frontend (já tem seu próprio .gitignore, mas incluindo aqui também)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# Build artifacts
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+

@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-budget-type-and-percentage
+      author: system
+      changes:
+        - addColumn:
+            tableName: budgets
+            columns:
+              - column:
+                  name: budget_type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: percentage
+                  type: NUMERIC(5,2)
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: UPDATE budgets SET budget_type = 'VALUE' WHERE budget_type IS NULL
+        - addNotNullConstraint:
+            tableName: budgets
+            columnName: budget_type
+            columnDataType: VARCHAR(50)
+
