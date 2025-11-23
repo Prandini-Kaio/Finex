@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Plus, Trash2, Upload, Download, FileDown } from 'lucide-react'
+import { Plus, Trash2, Upload, Download, FileDown, Edit } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -69,6 +69,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [showModal, setShowModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
+  const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null)
   const [form, setForm] = useState<FormState>(defaultForm(selectedMonth))
   const [submitting, setSubmitting] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -86,10 +87,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
   // Resetar form quando o modal abrir
   useEffect(() => {
-    if (showModal) {
+    if (showModal && !editingTransactionId) {
       setForm(defaultForm(selectedMonth))
     }
-  }, [showModal, selectedMonth])
+  }, [showModal, selectedMonth, editingTransactionId])
 
   // Handler para abrir o modal
   const handleOpenModal = () => {
@@ -109,27 +110,68 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     if (!form.value || !form.description) return
     if (form.paymentMethod === 'Crédito' && !form.creditCard) return
 
-    const payloads: TransactionPayload[] = buildInstallments({
-      date: form.date,
-      type: form.type,
-      paymentMethod: form.paymentMethod,
-      person: form.person,
-      category: form.category,
-      description: form.description,
-      value: Number(form.value),
-      competency: form.competency,
-      creditCard: form.creditCard,
-      installments: Number(form.installments),
-    })
-
     setSubmitting(true)
     try {
-      await actions.addTransactions(payloads)
+      if (editingTransactionId) {
+        // Editar transação existente
+        const payload: TransactionPayload = {
+          date: form.date,
+          type: form.type,
+          paymentMethod: form.paymentMethod,
+          person: form.person,
+          category: form.category,
+          description: form.description,
+          value: Number(form.value),
+          competency: form.competency,
+          creditCard: form.creditCard,
+          creditCardId: form.creditCard ? Number(form.creditCard) : undefined,
+          installments: Number(form.installments),
+          installmentNumber: 1,
+          totalInstallments: Number(form.installments),
+          parentPurchase: undefined,
+        }
+        await actions.updateTransaction(editingTransactionId, payload)
+      } else {
+        // Criar nova transação (com suporte a parcelas)
+        const payloads: TransactionPayload[] = buildInstallments({
+          date: form.date,
+          type: form.type,
+          paymentMethod: form.paymentMethod,
+          person: form.person,
+          category: form.category,
+          description: form.description,
+          value: Number(form.value),
+          competency: form.competency,
+          creditCard: form.creditCard,
+          installments: Number(form.installments),
+        })
+        await actions.addTransactions(payloads)
+      }
       setShowModal(false)
+      setEditingTransactionId(null)
       setForm(defaultForm(selectedMonth))
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleEdit = (transaction: Transaction) => {
+    if (isMonthClosed) return
+    
+    setEditingTransactionId(transaction.id)
+    setForm({
+      date: transaction.date,
+      type: transaction.type,
+      paymentMethod: transaction.paymentMethod,
+      person: transaction.person,
+      category: transaction.category,
+      description: transaction.description,
+      value: transaction.value.toString(),
+      competency: transaction.competency,
+      creditCard: transaction.creditCardId ? String(transaction.creditCardId) : transaction.creditCard || '',
+      installments: transaction.totalInstallments > 1 ? transaction.totalInstallments.toString() : '1',
+    })
+    setShowModal(true)
   }
 
   const transactionRows = useMemo(
@@ -425,7 +467,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       )}
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md space-y-4 border border-gray-200 dark:border-slate-700">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <select
             value={filters.person}
             onChange={(event) => handleFilterChange('person', event.target.value)}
@@ -456,6 +498,19 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             <option value="Débito">Débito</option>
             <option value="Dinheiro">Dinheiro</option>
             <option value="PIX">PIX</option>
+          </select>
+          <select
+            value={filters.creditCard}
+            onChange={(event) => handleFilterChange('creditCard', event.target.value)}
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+          >
+            <option value="Todos">Todos os cartões</option>
+            <option value="Sem cartão">Sem cartão</option>
+            {creditCards.map((card) => (
+              <option key={card.id} value={String(card.id)}>
+                {card.name} - {card.owner}
+              </option>
+            ))}
           </select>
           <input
             type="text"
@@ -518,13 +573,24 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-gray-100">R$ {transaction.value.toFixed(2)}</td>
                   <td className="px-4 py-3 text-sm">
-                    <button
-                      onClick={() => actions.deleteTransaction(transaction.id)}
-                      disabled={isMonthClosed}
-                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEdit(transaction)}
+                        disabled={isMonthClosed}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Editar lançamento"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => actions.deleteTransaction(transaction.id)}
+                        disabled={isMonthClosed}
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Excluir lançamento"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -546,7 +612,9 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
           }}
         >
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4 border border-gray-200 dark:border-slate-700">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Novo lançamento</h2>
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+              {editingTransactionId ? 'Editar lançamento' : 'Novo lançamento'}
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Data
@@ -646,7 +714,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                     >
                       <option value="">Selecione</option>
                       {creditCards.map((card) => (
-                        <option key={card.id} value={card.id}>
+                        <option key={card.id} value={String(card.id)}>
                           {card.name} - {card.owner}
                         </option>
                       ))}
@@ -671,7 +739,11 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             </div>
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false)
+                  setEditingTransactionId(null)
+                  setForm(defaultForm(selectedMonth))
+                }}
                 className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 transition-colors"
                 disabled={submitting}
               >
@@ -682,7 +754,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                 className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                 disabled={submitting}
               >
-                Salvar
+                {editingTransactionId ? 'Atualizar' : 'Salvar'}
               </button>
             </div>
           </div>

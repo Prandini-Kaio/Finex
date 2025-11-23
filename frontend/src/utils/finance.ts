@@ -4,6 +4,7 @@ export const DEFAULT_FILTERS: FinanceFilters = {
   person: 'Todos',
   category: 'Todas',
   paymentType: 'Todos',
+  creditCard: 'Todos',
 }
 
 export function getCurrentCompetency(): string {
@@ -21,7 +22,22 @@ export function filterTransactions(
     const personMatch = filters.person === 'Todos' || transaction.person === filters.person
     const categoryMatch = filters.category === 'Todas' || transaction.category === filters.category
     const paymentMatch = filters.paymentType === 'Todos' || transaction.paymentMethod === filters.paymentType
-    return monthMatch && personMatch && categoryMatch && paymentMatch
+    
+    // Filtro por cartão de crédito
+    let creditCardMatch = true
+    if (filters.creditCard !== 'Todos') {
+      if (filters.creditCard === 'Sem cartão') {
+        // Mostrar apenas transações sem cartão
+        creditCardMatch = !transaction.creditCardId && !transaction.creditCard
+      } else {
+        // Comparar por ID ou nome do cartão
+        const transactionCardId = transaction.creditCardId ?? (transaction.creditCard ? Number(transaction.creditCard) : null)
+        const filterCardId = Number(filters.creditCard)
+        creditCardMatch = transactionCardId === filterCardId
+      }
+    }
+    
+    return monthMatch && personMatch && categoryMatch && paymentMatch && creditCardMatch
   })
 }
 

@@ -43,8 +43,8 @@ export interface CreditCard {
   id: number
   name: string
   owner: Person
-  closingDay: string
-  dueDay: string
+  closingDay: string | number
+  dueDay: string | number
   limit: number
 }
 
@@ -82,6 +82,7 @@ export interface FinanceFilters {
   person: Person | 'Todos'
   category: string | 'Todas'
   paymentType: PaymentMethod | 'Todos'
+  creditCard: string | 'Todos'
 }
 
 export interface SimulationResult {

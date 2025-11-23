@@ -28,6 +28,7 @@ const initialState: FinanceState = {
 interface FinanceActions {
   refresh: () => Promise<void>
   addTransactions: (payloads: TransactionPayload[]) => Promise<Transaction[]>
+  updateTransaction: (id: number, payload: TransactionPayload) => Promise<Transaction>
   deleteTransaction: (id: number) => Promise<void>
   addBudget: (payload: BudgetPayload) => Promise<Budget>
   deleteBudget: (id: number) => Promise<void>
@@ -104,6 +105,12 @@ export function useFinanceData() {
     }
     await refresh()
     return created
+  }, [refresh])
+
+  const updateTransaction = useCallback(async (id: number, payload: TransactionPayload) => {
+    const updated = await financeService.updateTransaction(id, payload)
+    await refresh()
+    return updated
   }, [refresh])
 
   const deleteTransaction = useCallback(async (id: number) => {
@@ -208,6 +215,7 @@ export function useFinanceData() {
     () => ({
       refresh,
       addTransactions,
+      updateTransaction,
       deleteTransaction,
       addBudget,
       deleteBudget,
@@ -229,6 +237,7 @@ export function useFinanceData() {
     [
       refresh,
       addTransactions,
+      updateTransaction,
       deleteTransaction,
       addBudget,
       deleteBudget,

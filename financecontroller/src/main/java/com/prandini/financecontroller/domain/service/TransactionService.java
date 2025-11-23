@@ -51,6 +51,35 @@ public class TransactionService {
     }
 
     @Transactional
+    public Transaction update(Long id, TransactionRequest request) {
+        Transaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada: " + id));
+
+        transaction.setDate(request.date());
+        transaction.setType(request.type());
+        transaction.setPaymentMethod(request.paymentMethod());
+        transaction.setPerson(request.person());
+        transaction.setCategory(request.category());
+        transaction.setDescription(request.description());
+        transaction.setValue(request.value());
+        transaction.setCompetency(request.competency());
+        transaction.setInstallments(request.installments());
+        transaction.setInstallmentNumber(request.installmentNumber());
+        transaction.setTotalInstallments(request.totalInstallments());
+        transaction.setParentPurchaseId(request.parentPurchaseId());
+
+        if (request.creditCardId() != null) {
+            CreditCard creditCard = creditCardRepository.findById(request.creditCardId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado: " + request.creditCardId()));
+            transaction.setCreditCard(creditCard);
+        } else {
+            transaction.setCreditCard(null);
+        }
+
+        return transactionRepository.save(transaction);
+    }
+
+    @Transactional
     public void delete(Long id) {
         if (!transactionRepository.existsById(id)) {
             throw new ResourceNotFoundException("Transação não encontrada: " + id);

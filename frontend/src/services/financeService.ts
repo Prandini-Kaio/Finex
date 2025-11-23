@@ -23,6 +23,12 @@ export const financeService = {
       body: payload,
     })
   },
+  updateTransaction(id: number, payload: TransactionPayload): Promise<Transaction> {
+    return httpClient<Transaction>(`/api/transactions/${id}`, {
+      method: 'PUT',
+      body: payload,
+    })
+  },
   deleteTransaction(id: number): Promise<void> {
     return httpClient<void>(`/api/transactions/${id}`, {
       method: 'DELETE',

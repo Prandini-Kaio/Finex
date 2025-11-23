@@ -10,6 +10,7 @@ import { BudgetHealthView } from './views/BudgetHealthView'
 import { SavingsView } from './views/SavingsView'
 import { SettingsView } from './views/SettingsView'
 import { ThemeToggle } from './components/ThemeToggle'
+import { NotificationCenter } from './components/NotificationCenter'
 
 type FinanceView = 'dashboard' | 'transactions' | 'recurring' | 'closure' | 'budget' | 'savings' | 'settings'
 
@@ -141,6 +142,9 @@ const ViewContainer: React.FC = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">{renderView()}</main>
+      
+      {/* Centro de Notificações */}
+      <NotificationCenter />
     </div>
   )
 }
