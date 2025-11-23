@@ -186,6 +186,18 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     [transactions, creditCards],
   )
 
+  // Calcular totais das transações filtradas
+  const totals = useMemo(() => {
+    const expenses = transactionRows
+      .filter((t) => t.type === 'Despesa')
+      .reduce((sum, t) => sum + t.value, 0)
+    const income = transactionRows
+      .filter((t) => t.type === 'Receita')
+      .reduce((sum, t) => sum + t.value, 0)
+    const balance = income - expenses
+    return { expenses, income, balance }
+  }, [transactionRows])
+
   // Estatísticas para gráficos
   const stats = useMemo(() => {
     const expenses = transactions.filter((t) => t.type === 'Despesa').reduce((sum, t) => sum + t.value, 0)
@@ -595,6 +607,41 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                 </tr>
               ))}
             </tbody>
+            {transactionRows.length > 0 && (
+              <tfoot className="bg-gray-50 dark:bg-slate-700 border-t-2 border-gray-300 dark:border-slate-600">
+                <tr>
+                  <td colSpan={7} className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Total de Despesas:
+                  </td>
+                  <td className="px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400">
+                    R$ {totals.expenses.toFixed(2)}
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td colSpan={7} className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Total de Receitas:
+                  </td>
+                  <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
+                    R$ {totals.income.toFixed(2)}
+                  </td>
+                  <td></td>
+                </tr>
+                <tr className="bg-gray-100 dark:bg-slate-600">
+                  <td colSpan={7} className="px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200">
+                    Saldo:
+                  </td>
+                  <td className={`px-4 py-3 text-sm font-bold ${
+                    totals.balance >= 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    R$ {totals.balance.toFixed(2)}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
           {transactionRows.length === 0 && (
             <p className="text-center py-8 text-gray-400 dark:text-gray-500">Nenhum lançamento encontrado</p>
