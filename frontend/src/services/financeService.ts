@@ -186,6 +186,7 @@ export const financeService = {
       return 'http://localhost:8080'
     }
     
+    // Calcula a URL da API dinamicamente
     const API_URL = getApiUrl()
     const response = await fetch(`${API_URL}/api/transactions/export`, {
       method: 'GET',

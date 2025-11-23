@@ -20,8 +20,6 @@ function getApiUrl(): string {
   return 'http://localhost:8080'
 }
 
-const API_URL = getApiUrl()
-
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
 interface HttpOptions<TBody> {
@@ -34,6 +32,14 @@ export async function httpClient<TResponse, TBody = unknown>(
   path: string,
   options: HttpOptions<TBody> = {},
 ): Promise<TResponse> {
+  // Calcula a URL da API dinamicamente a cada requisição
+  const API_URL = getApiUrl()
+  
+  // Debug: log da URL sendo usada (apenas em desenvolvimento)
+  if (import.meta.env.DEV) {
+    console.log(`[httpClient] Fazendo requisição para: ${API_URL}${path}`)
+  }
+  
   const { method = 'GET', body, headers } = options
   const response = await fetch(`${API_URL}${path}`, {
     method,
