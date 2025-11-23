@@ -347,7 +347,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                     outerRadius={90}
                     label={({ name, value }) => `${name}: R$ ${value.toFixed(2)}`}
                   >
-                    {paymentMethodChart.map((entry, index) => (
+                    {paymentMethodChart.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

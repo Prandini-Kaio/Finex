@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -166,8 +166,6 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
       gasto: data.spent,
     }))
   }, [enrichedBudgets])
-
-  const COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#ec4899']
 
   const handleSubmit = async () => {
     if (form.budgetType === 'VALUE' && !form.amount) return

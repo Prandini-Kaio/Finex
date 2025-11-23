@@ -221,9 +221,12 @@ export const SavingsView: React.FC = () => {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={({ name, percentage }) => `${name}: ${percentage}%`}
+                    label={({ name, value }) => {
+                      const percentage = totalSaved > 0 ? ((value / totalSaved) * 100).toFixed(1) : '0'
+                      return `${name}: ${percentage}%`
+                    }}
                   >
-                    {distributionChart.map((entry, index) => (
+                    {distributionChart.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

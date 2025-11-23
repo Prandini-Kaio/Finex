@@ -130,7 +130,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     
     // Filtrar transações do ano atual
     const yearTransactions = allTransactions.filter((t) => {
-      const [month, year] = t.competency.split('/')
+      const [, year] = t.competency.split('/')
       return parseInt(year) === currentYear
     })
 
@@ -165,7 +165,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     
     // Filtrar transações do ano atual
     const yearTransactions = allTransactions.filter((t) => {
-      const [month, year] = t.competency.split('/')
+      const [, year] = t.competency.split('/')
       return parseInt(year) === currentYear
     })
 
