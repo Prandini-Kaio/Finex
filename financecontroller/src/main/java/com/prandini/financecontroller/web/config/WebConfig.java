@@ -19,14 +19,25 @@ public class WebConfig implements WebMvcConfigurer {
         var corsRegistration = registry.addMapping("/api/**")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
-                .allowCredentials(true);
+                .maxAge(3600);
 
         if (allowAllOrigins) {
             // Permite qualquer origem (útil para desenvolvimento em rede local)
-            corsRegistration.allowedOriginPatterns("*");
+            // Usa padrão que funciona com IPs e hostnames
+            // Quando allowAllOrigins é true, não podemos usar allowCredentials(true)
+            // O padrão "*" funciona com http://, https://, IPs e hostnames
+            // Adiciona também padrões específicos para IPs comuns
+            corsRegistration.allowedOriginPatterns(
+                    "*",
+                    "http://*",
+                    "https://*",
+                    "http://*:*",
+                    "https://*:*"
+            );
         } else {
             // Usa as origens específicas configuradas
-            corsRegistration.allowedOrigins(allowedOrigins);
+            corsRegistration.allowedOrigins(allowedOrigins)
+                    .allowCredentials(true);
         }
     }
 }
