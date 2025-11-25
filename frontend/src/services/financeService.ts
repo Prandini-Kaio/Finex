@@ -4,6 +4,8 @@ import type {
   CreditCard,
   CreditCardPayload,
   DepositPayload,
+  Investment,
+  InvestmentPayload,
   RecurringTransaction,
   RecurringTransactionPayload,
   SavingsGoal,
