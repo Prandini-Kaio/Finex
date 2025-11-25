@@ -3,6 +3,8 @@ import type {
   BudgetPayload,
   CreditCard,
   CreditCardPayload,
+  CreditCardInvoicePayload,
+  CreditCardInvoiceStatus,
   DepositPayload,
   Investment,
   InvestmentPayload,
@@ -76,6 +78,22 @@ export const financeService = {
   },
   getCreditCards(): Promise<CreditCard[]> {
     return httpClient<CreditCard[]>('/api/credit-cards')
+  },
+  getCreditCardInvoices(competency: string): Promise<CreditCardInvoiceStatus[]> {
+    const query = encodeURIComponent(competency)
+    return httpClient<CreditCardInvoiceStatus[]>(`/api/credit-card-invoices?month=${query}`)
+  },
+  updateAllCreditCardInvoices(payload: CreditCardInvoicePayload): Promise<CreditCardInvoiceStatus[]> {
+    return httpClient<CreditCardInvoiceStatus[]>('/api/credit-card-invoices', {
+      method: 'PUT',
+      body: payload,
+    })
+  },
+  updateCreditCardInvoiceStatus(cardId: number, payload: CreditCardInvoicePayload): Promise<CreditCardInvoiceStatus> {
+    return httpClient<CreditCardInvoiceStatus>(`/api/credit-card-invoices/${cardId}`, {
+      method: 'PUT',
+      body: payload,
+    })
   },
   createCreditCard(payload: CreditCardPayload): Promise<CreditCard> {
     return httpClient<CreditCard>('/api/credit-cards', {

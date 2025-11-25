@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -11,8 +11,63 @@ import {
   Legend,
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
-import type { Transaction } from '../types/finance'
+import type { CreditCardInvoiceStatus, Transaction } from '../types/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
+import { financeService } from '../services/financeService'
+
+type MonthSummary = {
+  totalCards: number
+  paidCount: number
+  pendingCount: number
+  progress: number
+}
+
+type InvoiceFilter = 'all' | 'pending' | 'paid'
+
+const invoiceFilterOptions: { value: InvoiceFilter; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'pending', label: 'Pendentes' },
+  { value: 'paid', label: 'Pagos' },
+]
+
+const mapInvoicesByCard = (statuses: CreditCardInvoiceStatus[]) =>
+  statuses.reduce<Record<number, CreditCardInvoiceStatus>>((acc, status) => {
+    acc[status.creditCardId] = status
+    return acc
+  }, {})
+
+const buildSummary = (cards: { id: number }[], statuses: CreditCardInvoiceStatus[]): MonthSummary => {
+  const totalCards = cards.length
+  if (totalCards === 0) {
+    return { totalCards: 0, paidCount: 0, pendingCount: 0, progress: 0 }
+  }
+
+  const statusById = new Map(statuses.map((status) => [status.creditCardId, status]))
+  const paidCount = cards.reduce((count, card) => (statusById.get(card.id)?.paid ? count + 1 : count), 0)
+  const pendingCount = Math.max(totalCards - paidCount, 0)
+  const progress = (paidCount / totalCards) * 100
+
+  return { totalCards, paidCount, pendingCount, progress }
+}
+
+const getRecentMonths = (baseMonth: string, total = 6) => {
+  const [year, month] = baseMonth.split('-').map(Number)
+  const months: string[] = []
+
+  for (let offset = total - 1; offset >= 0; offset -= 1) {
+    const date = new Date(year, (month - 1) - offset, 1)
+    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    months.push(value)
+  }
+
+  return months
+}
+
+const formatMonthLabel = (value: string) => {
+  const [year, month] = value.split('-').map(Number)
+  const date = new Date(year, month - 1, 1)
+  return date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
+}
 
 interface ClosureViewProps {
   selectedMonth: string
@@ -26,7 +81,130 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
     actions,
   } = useFinance()
 
+  const [invoiceStatuses, setInvoiceStatuses] = useState<Record<number, CreditCardInvoiceStatus>>({})
+  const [invoiceLoading, setInvoiceLoading] = useState(false)
+  const [invoiceError, setInvoiceError] = useState<string | null>(null)
+  const [updatingCardId, setUpdatingCardId] = useState<number | null>(null)
+  const [bulkUpdating, setBulkUpdating] = useState<'pay' | 'reset' | null>(null)
+  const [monthSummaries, setMonthSummaries] = useState<Record<string, MonthSummary>>({})
+  const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all')
+
   const isClosed = closedMonths.includes(selectedMonth)
+  const recentMonths = useMemo(() => getRecentMonths(selectedMonth, 6), [selectedMonth])
+
+  useEffect(() => {
+    let isMounted = true
+    setInvoiceLoading(true)
+    financeService
+      .getCreditCardInvoices(selectedMonth)
+      .then((statuses) => {
+        if (!isMounted) return
+        const mapped = mapInvoicesByCard(statuses)
+        setInvoiceStatuses(mapped)
+        setMonthSummaries((prev) => ({
+          ...prev,
+          [selectedMonth]: buildSummary(creditCards, statuses),
+        }))
+        setInvoiceError(null)
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        console.error(error)
+        setInvoiceError(error instanceof Error ? error.message : 'Falha ao carregar status das faturas')
+      })
+      .finally(() => {
+        if (isMounted) {
+          setInvoiceLoading(false)
+        }
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [selectedMonth, creditCards])
+
+  useEffect(() => {
+    const missing = recentMonths.filter((month) => month !== selectedMonth && !monthSummaries[month])
+    if (missing.length === 0) {
+      return
+    }
+
+    let cancelled = false
+    Promise.all(
+      missing.map((month) =>
+        financeService
+          .getCreditCardInvoices(month)
+          .then((statuses) => ({ month, summary: buildSummary(creditCards, statuses) }))
+          .catch((error) => {
+            console.error('Falha ao carregar resumo de faturas', error)
+            return null
+          }),
+      ),
+    ).then((results) => {
+      if (cancelled) return
+      setMonthSummaries((prev) => {
+        const next = { ...prev }
+        results.forEach((result) => {
+          if (!result) return
+          next[result.month] = result.summary
+        })
+        return next
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [recentMonths, selectedMonth, creditCards])
+
+  const handleToggleInvoice = async (cardId: number) => {
+    const currentPaid = invoiceStatuses[cardId]?.paid ?? false
+    setUpdatingCardId(cardId)
+    setInvoiceError(null)
+    try {
+      const updated = await financeService.updateCreditCardInvoiceStatus(cardId, {
+        referenceMonth: selectedMonth,
+        paid: !currentPaid,
+      })
+      setInvoiceStatuses((prev) => {
+        const next = {
+          ...prev,
+          [cardId]: updated,
+        }
+        setMonthSummaries((prevSummaries) => ({
+          ...prevSummaries,
+          [selectedMonth]: buildSummary(creditCards, Object.values(next)),
+        }))
+        return next
+      })
+    } catch (error) {
+      console.error(error)
+      setInvoiceError(error instanceof Error ? error.message : 'Falha ao atualizar status da fatura')
+    } finally {
+      setUpdatingCardId(null)
+    }
+  }
+
+  const handleToggleAllInvoices = async (paid: boolean) => {
+    setBulkUpdating(paid ? 'pay' : 'reset')
+    setInvoiceError(null)
+    try {
+      const updated = await financeService.updateAllCreditCardInvoices({
+        referenceMonth: selectedMonth,
+        paid,
+      })
+      const mapped = mapInvoicesByCard(updated)
+      setInvoiceStatuses(mapped)
+      setMonthSummaries((prev) => ({
+        ...prev,
+        [selectedMonth]: buildSummary(creditCards, updated),
+      }))
+    } catch (error) {
+      console.error(error)
+      setInvoiceError(error instanceof Error ? error.message : 'Falha ao atualizar faturas do mês')
+    } finally {
+      setBulkUpdating(null)
+    }
+  }
 
   const cardExpenses = useMemo(() => {
     return creditCards.map((card) => {
@@ -69,6 +247,19 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
       uso: Math.min(card.usage, 100),
     }))
   }, [cardExpenses])
+
+  const invoiceSummary = useMemo(() => buildSummary(creditCards, Object.values(invoiceStatuses)), [creditCards, invoiceStatuses])
+  const hasPendingInvoices = invoiceSummary.pendingCount > 0
+  const hasPaidInvoices = invoiceSummary.paidCount > 0
+
+  const filteredCardExpenses = useMemo(() => {
+    return cardExpenses.filter((card) => {
+      const paid = invoiceStatuses[card.id]?.paid ?? false
+      if (invoiceFilter === 'paid') return paid
+      if (invoiceFilter === 'pending') return !paid
+      return true
+    })
+  }, [cardExpenses, invoiceFilter, invoiceStatuses])
 
   // Estatísticas gerais
   const totalStats = useMemo(() => {
@@ -252,6 +443,116 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         )}
       </div>
 
+      {/* Facilitador de faturas */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700 space-y-3">
+        <div className="flex flex-wrap justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Status das faturas</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Controle rápido das faturas de {selectedMonth}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+              {invoiceSummary.paidCount}/{invoiceSummary.totalCards}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Faturas pagas</p>
+          </div>
+        </div>
+        <div>
+          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-2 bg-emerald-500 transition-all"
+              style={{ width: `${invoiceSummary.progress}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+            {invoiceSummary.pendingCount} pendente(s)
+          </p>
+        </div>
+        {invoiceLoading && <p className="text-xs text-gray-500">Atualizando status das faturas...</p>}
+        {invoiceError && (
+          <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded p-2">
+            {invoiceError}
+          </div>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 dark:border-slate-700 pt-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Use os atalhos para marcar todas as faturas conforme o status real do mês.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => handleToggleAllInvoices(true)}
+              disabled={bulkUpdating !== null || !hasPendingInvoices || invoiceLoading || creditCards.length === 0}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white disabled:opacity-60"
+            >
+              {bulkUpdating === 'pay' ? 'Aplicando...' : 'Marcar todas como pagas'}
+            </button>
+            <button
+              onClick={() => handleToggleAllInvoices(false)}
+              disabled={bulkUpdating !== null || !hasPaidInvoices || invoiceLoading || creditCards.length === 0}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 disabled:opacity-60"
+            >
+              {bulkUpdating === 'reset' ? 'Atualizando...' : 'Marcar todas como pendentes'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Histórico de faturas por mês */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Histórico de faturas</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Visualize rapidamente o status dos últimos meses.</p>
+          </div>
+        </div>
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {recentMonths.map((month) => {
+            const summary = monthSummaries[month]
+            const isActive = month === selectedMonth
+            const pending = summary?.pendingCount ?? null
+            return (
+              <button
+                key={month}
+                onClick={() => month !== selectedMonth && onMonthChange(month)}
+                className={`min-w-[150px] rounded-xl border px-4 py-3 text-left transition-colors ${
+                  isActive
+                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                    : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800'
+                }`}
+              >
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{formatMonthLabel(month)}</p>
+                {summary ? (
+                  <>
+                    {summary.totalCards > 0 ? (
+                      <>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                          {summary.paidCount}/{summary.totalCards} pagas
+                        </p>
+                        {pending && pending > 0 ? (
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            {pending} pendente(s)
+                          </p>
+                        ) : (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                            ✓ Tudo pago
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Sem cartões</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Carregando...</p>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Estatísticas gerais */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700">
@@ -319,8 +620,29 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         </div>
       )}
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {invoiceFilterOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setInvoiceFilter(option.value)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
+                invoiceFilter === option.value
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white'
+                  : 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Exibindo {filteredCardExpenses.length} de {cardExpenses.length} cartões
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {cardExpenses.map((card) => (
+        {filteredCardExpenses.map((card) => (
           <div
             key={card.id}
             className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow border border-gray-100 dark:border-slate-700 space-y-3"
@@ -361,9 +683,72 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
                 style={{ width: `${Math.min(card.usage, 100)}%` }}
               />
             </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                    invoiceStatuses[card.id]?.paid
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                  }`}
+                >
+                  {invoiceStatuses[card.id]?.paid ? 'Fatura paga' : 'Fatura pendente'}
+                </span>
+                <button
+                  onClick={() => handleToggleInvoice(card.id)}
+                  disabled={updatingCardId === card.id}
+                  className="text-xs px-3 py-1 rounded-lg border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-60"
+                >
+                  {invoiceStatuses[card.id]?.paid ? 'Marcar como não paga' : 'Marcar como paga'}
+                </button>
+              </div>
+              {invoiceStatuses[card.id]?.paidAt && (() => {
+                try {
+                  // Tenta parsear a data que pode vir como string ISO ou array do LocalDateTime
+                  let date: Date
+                  const paidAt = invoiceStatuses[card.id]!.paidAt!
+                  
+                  if (typeof paidAt === 'string') {
+                    // Se for string, tenta parsear diretamente
+                    date = new Date(paidAt)
+                  } else if (Array.isArray(paidAt)) {
+                    // Se for array [ano, mês, dia, hora, minuto, segundo] do LocalDateTime
+                    const [year, month, day, hour = 0, minute = 0, second = 0] = paidAt
+                    date = new Date(year, month - 1, day, hour, minute, second)
+                  } else {
+                    date = new Date(paidAt)
+                  }
+                  
+                  // Verifica se a data é válida
+                  if (isNaN(date.getTime())) {
+                    return null
+                  }
+                  
+                  return (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Pago em {date.toLocaleString('pt-BR', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  )
+                } catch (error) {
+                  console.error('Erro ao formatar data:', error)
+                  return null
+                }
+              })()}
+            </div>
           </div>
         ))}
       </div>
+      {filteredCardExpenses.length === 0 && (
+        <div className="text-center text-sm text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-6">
+          Nenhum cartão corresponde ao filtro selecionado.
+        </div>
+      )}
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
         <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-100">Meses fechados</h3>

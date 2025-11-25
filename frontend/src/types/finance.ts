@@ -50,6 +50,20 @@ export interface CreditCard {
 
 export type CreditCardPayload = Omit<CreditCard, 'id'>
 
+export interface CreditCardInvoiceStatus {
+  creditCardId: number
+  creditCardName: string
+  owner: Person
+  referenceMonth: string
+  paid: boolean
+  paidAt?: string | null
+}
+
+export interface CreditCardInvoicePayload {
+  referenceMonth: string
+  paid: boolean
+}
+
 export interface SavingsDeposit {
   id: number
   amount: number

@@ -7,4 +7,6 @@ databaseChangeLog:
       file: classpath:db/changelog/db.changelog-003-add-budget-type-and-percentage.yaml
   - include:
       file: classpath:db/changelog/db.changelog-004-create-investments.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-006-create-credit-card-invoices.yaml
 

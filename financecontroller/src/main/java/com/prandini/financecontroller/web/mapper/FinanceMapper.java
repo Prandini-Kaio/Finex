@@ -114,5 +114,17 @@ public final class FinanceMapper {
                 investment.getUpdatedAt()
         );
     }
+
+    public static CreditCardInvoiceResponse toResponse(CreditCard card, CreditCardInvoice invoice, String referenceMonth) {
+        boolean paid = invoice != null && invoice.isPaid();
+        return new CreditCardInvoiceResponse(
+                card.getId(),
+                card.getName(),
+                card.getOwner(),
+                referenceMonth,
+                paid,
+                paid ? invoice.getPaidAt() : null
+        );
+    }
 }
 
