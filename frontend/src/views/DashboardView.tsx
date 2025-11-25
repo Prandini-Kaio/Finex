@@ -76,7 +76,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     installmentValue: number
     totalWithInterest: number
     totalInterest: number
-    installmentsTable?: Array<{ installment: number; month: string; value: number }>
+    installmentsTable?: Array<{ installment: number; month: string; value: number; projectedBalance: number }>
   } | null>(null)
 
   const stats = useMemo(() => {
@@ -248,7 +248,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       totalWithInterest = installmentValue * installments
     }
 
-    // Gerar tabela de parcelas
+    // Calcular saldo mês a mês considerando transações existentes
     const [currentMonth, currentYear] = selectedMonth.split('/')
     const installmentsTable = Array.from({ length: installments }, (_, i) => {
       const month = parseInt(currentMonth) + i
@@ -261,10 +261,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
         finalYear = year + 1
       }
       
+      const monthKey = `${String(finalMonth).padStart(2, '0')}/${finalYear}`
+      
+      // Calcular saldo do mês considerando transações existentes
+      const monthTransactions = allTransactions.filter(t => t.competency === monthKey)
+      const monthIncome = monthTransactions
+        .filter(t => t.type === 'Receita')
+        .reduce((sum, t) => sum + t.value, 0)
+      const monthExpenses = monthTransactions
+        .filter(t => t.type === 'Despesa')
+        .reduce((sum, t) => sum + t.value, 0)
+      const monthBalance = monthIncome - monthExpenses - installmentValue
+      
       return {
         installment: i + 1,
-        month: `${String(finalMonth).padStart(2, '0')}/${finalYear}`,
+        month: monthKey,
         value: installmentValue,
+        projectedBalance: monthBalance,
       }
     })
 
@@ -635,17 +648,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
               </label>
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Parcelas
-                <select
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
                   value={simulatorForm.installments}
                   onChange={(event) => setSimulatorForm({ ...simulatorForm, installments: event.target.value })}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                >
-                  {[1, 2, 3, 6, 9, 12, 18, 24].map((value) => (
-                    <option key={value} value={value}>
-                      {value}x
-                    </option>
-                  ))}
-                </select>
+                  placeholder="1"
+                />
               </label>
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Juros mensais (%)
@@ -715,8 +726,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                          {simulationResult.installmentsTable.map((item, index) => {
-                            const projectedBalance = stats.balance - simulationResult.installmentValue * (index + 1)
+                          {simulationResult.installmentsTable.map((item) => {
                             return (
                               <tr key={item.installment} className="hover:bg-gray-50 dark:hover:bg-slate-700">
                                 <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{item.installment}ª</td>
@@ -724,8 +734,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
                                 <td className="px-4 py-2 text-sm font-medium text-right text-red-600 dark:text-red-400">
                                   R$ {item.value.toFixed(2)}
                                 </td>
-                                <td className={`px-4 py-2 text-sm font-medium text-right ${projectedBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
-                                  R$ {projectedBalance.toFixed(2)}
+                                <td className={`px-4 py-2 text-sm font-medium text-right ${item.projectedBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                                  R$ {item.projectedBalance.toFixed(2)}
                                 </td>
                               </tr>
                             )

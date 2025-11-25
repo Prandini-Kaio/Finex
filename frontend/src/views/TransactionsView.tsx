@@ -524,13 +524,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               </option>
             ))}
           </select>
-          <input
-            type="text"
-            value={selectedMonth}
-            placeholder="MM/AAAA"
-            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-            onChange={(event) => onMonthChange(event.target.value)}
-          />
+          <MonthYearSelector value={selectedMonth} onChange={onMonthChange} />
         </div>
 
         <div className="overflow-x-auto">
@@ -769,17 +763,15 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   </label>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Parcelas
-                    <select
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
                       value={form.installments}
                       onChange={(event) => setForm({ ...form, installments: event.target.value })}
                       className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 9, 12, 18, 24].map((value) => (
-                        <option key={value} value={value}>
-                          {value}x
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="1"
+                    />
                   </label>
                 </>
               )}

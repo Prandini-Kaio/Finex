@@ -113,6 +113,34 @@ export interface RecurringTransaction {
 
 export type RecurringTransactionPayload = Omit<RecurringTransaction, 'id' | 'creditCardName'>
 
+export type InvestmentType = 
+  | 'TESOURO_DIRETO'
+  | 'CDB'
+  | 'POUPANCA'
+  | 'LCI'
+  | 'LCA'
+  | 'FUNDO_INVESTIMENTO'
+  | 'ACAO'
+  | 'FII'
+  | 'OUTROS'
+
+export interface Investment {
+  id: number
+  name: string
+  type: InvestmentType
+  owner: Person
+  investedAmount: number
+  investmentDate: string
+  annualRate?: number
+  currentValue?: number
+  description?: string
+  institution?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type InvestmentPayload = Omit<Investment, 'id' | 'createdAt' | 'updatedAt'>
+
 export interface FinanceState {
   transactions: Transaction[]
   budgets: Budget[]
@@ -121,6 +149,7 @@ export interface FinanceState {
   creditCards: CreditCard[]
   savingsGoals: SavingsGoal[]
   recurringTransactions: RecurringTransaction[]
+  investments: Investment[]
 }
 
 

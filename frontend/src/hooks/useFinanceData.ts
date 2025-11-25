@@ -7,6 +7,8 @@ import type {
   CreditCardPayload,
   DepositPayload,
   FinanceState,
+  Investment,
+  InvestmentPayload,
   RecurringTransaction,
   RecurringTransactionPayload,
   SavingsGoal,
@@ -23,6 +25,7 @@ const initialState: FinanceState = {
   creditCards: [],
   savingsGoals: [],
   recurringTransactions: [],
+  investments: [],
 }
 
 interface FinanceActions {
@@ -46,6 +49,9 @@ interface FinanceActions {
   updateRecurringTransaction: (id: number, payload: RecurringTransactionPayload) => Promise<RecurringTransaction>
   deleteRecurringTransaction: (id: number) => Promise<void>
   generateRecurringTransactions: (competency: string) => Promise<Transaction[]>
+  addInvestment: (payload: InvestmentPayload) => Promise<Investment>
+  updateInvestment: (id: number, payload: InvestmentPayload) => Promise<Investment>
+  deleteInvestment: (id: number) => Promise<void>
 }
 
 export function useFinanceData() {
@@ -56,7 +62,7 @@ export function useFinanceData() {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [transactions, budgets, categories, closedMonths, creditCards, savingsGoals, recurringTransactions] = await Promise.all([
+      const [transactions, budgets, categories, closedMonths, creditCards, savingsGoals, recurringTransactions, investments] = await Promise.all([
         financeService.getTransactions(),
         financeService.getBudgets(),
         financeService.getCategories(),
@@ -64,6 +70,7 @@ export function useFinanceData() {
         financeService.getCreditCards(),
         financeService.getSavingsGoals(),
         financeService.getRecurringTransactions(),
+        financeService.getInvestments(),
       ])
 
       // Mapear creditCardId para creditCard para compatibilidade
@@ -80,6 +87,7 @@ export function useFinanceData() {
         creditCards,
         savingsGoals,
         recurringTransactions,
+        investments,
       })
       setError(null)
     } catch (err) {
@@ -211,6 +219,23 @@ export function useFinanceData() {
     await financeService.exportTransactions(startDate, endDate)
   }, [])
 
+  const addInvestment = useCallback(async (payload: InvestmentPayload) => {
+    const created = await financeService.createInvestment(payload)
+    await refresh()
+    return created
+  }, [refresh])
+
+  const updateInvestment = useCallback(async (id: number, payload: InvestmentPayload) => {
+    const updated = await financeService.updateInvestment(id, payload)
+    await refresh()
+    return updated
+  }, [refresh])
+
+  const deleteInvestment = useCallback(async (id: number) => {
+    await financeService.deleteInvestment(id)
+    await refresh()
+  }, [refresh])
+
   const actions: FinanceActions = useMemo(
     () => ({
       refresh,
@@ -233,6 +258,9 @@ export function useFinanceData() {
       updateRecurringTransaction,
       deleteRecurringTransaction,
       generateRecurringTransactions,
+      addInvestment,
+      updateInvestment,
+      deleteInvestment,
     }),
     [
       refresh,
@@ -255,6 +283,9 @@ export function useFinanceData() {
       updateRecurringTransaction,
       deleteRecurringTransaction,
       generateRecurringTransactions,
+      addInvestment,
+      updateInvestment,
+      deleteInvestment,
     ],
   )
 

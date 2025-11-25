@@ -232,5 +232,27 @@ export const financeService = {
     document.body.removeChild(link)
     window.URL.revokeObjectURL(blobUrl)
   },
+
+  // Investments
+  getInvestments(): Promise<Investment[]> {
+    return httpClient<Investment[]>('/api/investments')
+  },
+  createInvestment(payload: InvestmentPayload): Promise<Investment> {
+    return httpClient<Investment>('/api/investments', {
+      method: 'POST',
+      body: payload,
+    })
+  },
+  updateInvestment(id: number, payload: InvestmentPayload): Promise<Investment> {
+    return httpClient<Investment>(`/api/investments/${id}`, {
+      method: 'PUT',
+      body: payload,
+    })
+  },
+  deleteInvestment(id: number): Promise<void> {
+    return httpClient<void>(`/api/investments/${id}`, {
+      method: 'DELETE',
+    })
+  },
 }
 

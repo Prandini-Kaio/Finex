@@ -97,5 +97,22 @@ public final class FinanceMapper {
                 recurring.getBaseCompetency()
         );
     }
+
+    public static InvestmentResponse toResponse(Investment investment) {
+        return new InvestmentResponse(
+                investment.getId(),
+                investment.getName(),
+                investment.getType(),
+                investment.getOwner(),
+                investment.getInvestedAmount(),
+                investment.getInvestmentDate(),
+                investment.getAnnualRate(),
+                investment.getCurrentValue(),
+                investment.getDescription(),
+                investment.getInstitution(),
+                investment.getCreatedAt(),
+                investment.getUpdatedAt()
+        );
+    }
 }
 

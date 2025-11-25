@@ -9,10 +9,11 @@ import { ClosureView } from './views/ClosureView'
 import { BudgetHealthView } from './views/BudgetHealthView'
 import { SavingsView } from './views/SavingsView'
 import { SettingsView } from './views/SettingsView'
+import { InvestmentsView } from './views/InvestmentsView'
 import { ThemeToggle } from './components/ThemeToggle'
 import { NotificationCenter } from './components/NotificationCenter'
 
-type FinanceView = 'dashboard' | 'transactions' | 'recurring' | 'closure' | 'budget' | 'savings' | 'settings'
+type FinanceView = 'dashboard' | 'transactions' | 'recurring' | 'closure' | 'budget' | 'savings' | 'investments' | 'settings'
 
 const VIEW_LABELS: Record<FinanceView, string> = {
   dashboard: 'Dashboard',
@@ -21,6 +22,7 @@ const VIEW_LABELS: Record<FinanceView, string> = {
   closure: 'Fechamento',
   budget: 'Planejamento',
   savings: 'Poupança',
+  investments: 'Investimentos',
   settings: 'Configurações',
 }
 
@@ -94,6 +96,8 @@ const ViewContainer: React.FC = () => {
         )
       case 'savings':
         return <SavingsView />
+      case 'investments':
+        return <InvestmentsView />
       case 'settings':
         return <SettingsView />
       default:
