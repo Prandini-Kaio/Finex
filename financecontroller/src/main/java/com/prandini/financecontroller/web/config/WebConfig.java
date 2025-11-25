@@ -22,18 +22,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .maxAge(3600);
 
         if (allowAllOrigins) {
-            // Permite qualquer origem (útil para desenvolvimento em rede local)
-            // Usa padrão que funciona com IPs e hostnames
-            // Quando allowAllOrigins é true, não podemos usar allowCredentials(true)
-            // O padrão "*" funciona com http://, https://, IPs e hostnames
-            // Adiciona também padrões específicos para IPs comuns
-            corsRegistration.allowedOriginPatterns(
-                    "*",
-                    "http://*",
-                    "https://*",
-                    "http://*:*",
-                    "https://*:*"
-            );
+            corsRegistration.allowedOriginPatterns("*");
         } else {
             // Usa as origens específicas configuradas
             corsRegistration.allowedOrigins(allowedOrigins)
