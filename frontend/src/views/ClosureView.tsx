@@ -704,19 +704,31 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
               </div>
               {invoiceStatuses[card.id]?.paidAt && (() => {
                 try {
+                  const paidAt = invoiceStatuses[card.id]!.paidAt!
+                  
+                  // Verifica se paidAt é válido
+                  if (!paidAt) {
+                    return null
+                  }
+                  
                   // Tenta parsear a data que pode vir como string ISO ou array do LocalDateTime
                   let date: Date
-                  const paidAt = invoiceStatuses[card.id]!.paidAt!
                   
                   if (typeof paidAt === 'string') {
                     // Se for string, tenta parsear diretamente
                     date = new Date(paidAt)
-                  } else if (Array.isArray(paidAt)) {
+                  } else if (Array.isArray(paidAt) && paidAt.length >= 3) {
                     // Se for array [ano, mês, dia, hora, minuto, segundo] do LocalDateTime
-                    const [year, month, day, hour = 0, minute = 0, second = 0] = paidAt
+                    const year = Number(paidAt[0]) || 0
+                    const month = Number(paidAt[1]) || 0
+                    const day = Number(paidAt[2]) || 0
+                    const hour = Number(paidAt[3]) || 0
+                    const minute = Number(paidAt[4]) || 0
+                    const second = Number(paidAt[5]) || 0
                     date = new Date(year, month - 1, day, hour, minute, second)
                   } else {
-                    date = new Date(paidAt)
+                    // Fallback: tenta criar Date diretamente
+                    date = new Date(String(paidAt))
                   }
                   
                   // Verifica se a data é válida

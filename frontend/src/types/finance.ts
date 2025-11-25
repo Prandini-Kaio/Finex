@@ -56,7 +56,7 @@ export interface CreditCardInvoiceStatus {
   owner: Person
   referenceMonth: string
   paid: boolean
-  paidAt?: string | null
+  paidAt?: string | number[] | null
 }
 
 export interface CreditCardInvoicePayload {
