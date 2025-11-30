@@ -64,6 +64,7 @@ export function buildInstallments(form: {
     value: Number(form.value),
     competency: form.competency,
     creditCard: form.creditCard,
+    creditCardId: form.creditCard ? Number(form.creditCard) : undefined,
     installments,
     installmentNumber: 1 as number,
     totalInstallments: installments,
