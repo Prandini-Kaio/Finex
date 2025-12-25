@@ -49,5 +49,10 @@ public class SavingsGoalController {
                 .map(FinanceMapper::toResponse)
                 .toList();
     }
+
+    @PutMapping("/deposits/{depositId}")
+    public SavingsGoalResponse updateDeposit(@PathVariable Long depositId, @RequestBody DepositRequest request) {
+        return FinanceMapper.toResponse(savingsGoalService.updateDeposit(depositId, request));
+    }
 }
 

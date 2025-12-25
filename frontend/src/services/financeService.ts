@@ -131,6 +131,12 @@ export const financeService = {
   getAllDeposits(): Promise<SavingsDeposit[]> {
     return httpClient<SavingsDeposit[]>('/api/savings-goals/deposits')
   },
+  updateDeposit(depositId: number, payload: Omit<DepositPayload, 'goalId'>): Promise<SavingsGoal> {
+    return httpClient<SavingsGoal>(`/api/savings-goals/deposits/${depositId}`, {
+      method: 'PUT',
+      body: payload,
+    })
+  },
   async importTransactions(file: File): Promise<{ totalProcessed: number; successCount: number; errorCount: number; errors: string[] }> {
     console.log('financeService.importTransactions - Iniciando upload do arquivo:', file.name)
     const formData = new FormData()

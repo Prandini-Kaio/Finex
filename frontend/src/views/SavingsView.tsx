@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Plus, Trash2, TrendingUp, Target, Award, Sparkles, Calendar, DollarSign, List } from 'lucide-react'
+import { Plus, Trash2, TrendingUp, Target, Award, Sparkles, Calendar, DollarSign, List, Edit2 } from 'lucide-react'
 import { financeService } from '../services/financeService'
 import type { SavingsDeposit } from '../types/finance'
 import {
@@ -44,6 +44,11 @@ export const SavingsView: React.FC = () => {
   const [showAllDeposits, setShowAllDeposits] = useState(false)
   const [allDeposits, setAllDeposits] = useState<SavingsDeposit[]>([])
   const [loadingDeposits, setLoadingDeposits] = useState(false)
+  const [editingDepositId, setEditingDepositId] = useState<number | null>(null)
+  const [editDepositValue, setEditDepositValue] = useState('')
+  const [editDepositDate, setEditDepositDate] = useState('')
+  const [editDepositPerson, setEditDepositPerson] = useState('')
+  const [editDepositObservacao, setEditDepositObservacao] = useState('')
 
   useEffect(() => {
     if (showAllDeposits) {
@@ -169,6 +174,35 @@ export const SavingsView: React.FC = () => {
     setDepositValue('')
     setDepositPerson(persons.find(p => p.active)?.name || '')
     setDepositObservacao('')
+  }
+
+  const handleStartEditDeposit = (deposit: SavingsDeposit) => {
+    setEditingDepositId(deposit.id)
+    setEditDepositValue(deposit.amount.toString())
+    setEditDepositDate(deposit.date)
+    setEditDepositPerson(deposit.person || persons.find(p => p.active)?.name || '')
+    setEditDepositObservacao(deposit.observacao || '')
+  }
+
+  const handleCancelEditDeposit = () => {
+    setEditingDepositId(null)
+    setEditDepositValue('')
+    setEditDepositDate('')
+    setEditDepositPerson('')
+    setEditDepositObservacao('')
+  }
+
+  const handleSaveEditDeposit = async () => {
+    if (!editingDepositId || !editDepositValue) return
+    const personId = getPersonIdByName(persons, editDepositPerson)
+    if (!personId) return
+    await actions.updateDeposit(editingDepositId, {
+      amount: Number(editDepositValue),
+      date: editDepositDate,
+      personId,
+      observacao: editDepositObservacao || undefined,
+    })
+    handleCancelEditDeposit()
   }
 
   return (
@@ -522,23 +556,98 @@ export const SavingsView: React.FC = () => {
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                       .slice(0, 3)
                       .map((deposit, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 rounded px-2 py-1.5 border border-gray-200 dark:border-slate-600">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-600 dark:text-gray-300">
-                              {new Date(deposit.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                            </span>
-                            {deposit.person && (
-                              <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] font-medium">
-                                {deposit.person}
-                              </span>
-                            )}
-                          </div>
-                          {deposit.observacao && (
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate">{deposit.observacao}</p>
+                        <div key={deposit.id || idx}>
+                          {editingDepositId === deposit.id ? (
+                            <div className="space-y-2 bg-white dark:bg-slate-800 rounded-lg p-3 border-2 border-blue-300 dark:border-blue-700">
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  Valor (R$)
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editDepositValue}
+                                    onChange={(e) => setEditDepositValue(e.target.value)}
+                                    className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                                  />
+                                </label>
+                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  Data
+                                  <input
+                                    type="date"
+                                    value={editDepositDate}
+                                    onChange={(e) => setEditDepositDate(e.target.value)}
+                                    className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                                  />
+                                </label>
+                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300 col-span-2">
+                                  Pessoa
+                                  <select
+                                    value={editDepositPerson}
+                                    onChange={(e) => setEditDepositPerson(e.target.value)}
+                                    className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                                  >
+                                    {persons.filter(p => p.active).map((person) => (
+                                      <option key={person.id} value={person.name}>{person.name}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300 col-span-2">
+                                  Observação
+                                  <input
+                                    type="text"
+                                    value={editDepositObservacao}
+                                    onChange={(e) => setEditDepositObservacao(e.target.value)}
+                                    className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                                    placeholder="Opcional"
+                                  />
+                                </label>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleCancelEditDeposit}
+                                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  onClick={handleSaveEditDeposit}
+                                  className="flex-1 px-2 py-1 text-xs bg-blue-500 dark:bg-blue-600 text-white rounded hover:bg-blue-600 dark:hover:bg-blue-700"
+                                >
+                                  Salvar
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 rounded px-2 py-1.5 border border-gray-200 dark:border-slate-600">
+                              <div className="flex items-center gap-2 flex-1">
+                                <span className="text-gray-600 dark:text-gray-300">
+                                  {new Date(deposit.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                </span>
+                                {deposit.person && (
+                                  <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] font-medium">
+                                    {deposit.person}
+                                  </span>
+                                )}
+                                {deposit.observacao && (
+                                  <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate flex-1" title={deposit.observacao}>
+                                    {deposit.observacao}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-green-600 dark:text-green-400">
+                                  +R$ {deposit.amount.toFixed(2)}
+                                </span>
+                                <button
+                                  onClick={() => handleStartEditDeposit(deposit)}
+                                  className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                                  title="Editar depósito"
+                                >
+                                  <Edit2 size={12} />
+                                </button>
+                              </div>
+                            </div>
                           )}
-                          <span className="font-semibold text-green-600 dark:text-green-400">
-                            +R$ {deposit.amount.toFixed(2)}
-                          </span>
                         </div>
                       ))}
                     {goal.deposits.length > 3 && (
@@ -687,33 +796,103 @@ export const SavingsView: React.FC = () => {
                 {allDeposits.map((deposit) => {
                   const goal = savingsGoals.find(g => g.deposits.some(d => d.id === deposit.id))
                   return (
-                    <div
-                      key={deposit.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-1">
-                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            {new Date(deposit.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </span>
-                          {goal && (
-                            <span className="px-2 py-1 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium">
-                              {goal.name}
-                            </span>
-                          )}
-                          {deposit.person && (
-                            <span className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium">
-                              {deposit.person}
-                            </span>
-                          )}
+                    <div key={deposit.id}>
+                      {editingDepositId === deposit.id ? (
+                        <div className="space-y-2 bg-white dark:bg-slate-800 rounded-lg p-3 border-2 border-blue-300 dark:border-blue-700">
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                              Valor (R$)
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={editDepositValue}
+                                onChange={(e) => setEditDepositValue(e.target.value)}
+                                className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                              />
+                            </label>
+                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                              Data
+                              <input
+                                type="date"
+                                value={editDepositDate}
+                                onChange={(e) => setEditDepositDate(e.target.value)}
+                                className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                              />
+                            </label>
+                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300 col-span-2">
+                              Pessoa
+                              <select
+                                value={editDepositPerson}
+                                onChange={(e) => setEditDepositPerson(e.target.value)}
+                                className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                              >
+                                {persons.filter(p => p.active).map((person) => (
+                                  <option key={person.id} value={person.name}>{person.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300 col-span-2">
+                              Observação
+                              <input
+                                type="text"
+                                value={editDepositObservacao}
+                                onChange={(e) => setEditDepositObservacao(e.target.value)}
+                                className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                                placeholder="Opcional"
+                              />
+                            </label>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleCancelEditDeposit}
+                              className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={handleSaveEditDeposit}
+                              className="flex-1 px-2 py-1 text-xs bg-blue-500 dark:bg-blue-600 text-white rounded hover:bg-blue-600 dark:hover:bg-blue-700"
+                            >
+                              Salvar
+                            </button>
+                          </div>
                         </div>
-                        {deposit.observacao && (
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{deposit.observacao}</p>
-                        )}
-                      </div>
-                      <span className="text-lg font-bold text-green-600 dark:text-green-400 ml-4">
-                        R$ {deposit.amount.toFixed(2)}
-                      </span>
+                      ) : (
+                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-1">
+                              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                {new Date(deposit.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                              {goal && (
+                                <span className="px-2 py-1 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium">
+                                  {goal.name}
+                                </span>
+                              )}
+                              {deposit.person && (
+                                <span className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium">
+                                  {deposit.person}
+                                </span>
+                              )}
+                            </div>
+                            {deposit.observacao && (
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{deposit.observacao}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold text-green-600 dark:text-green-400 ml-4">
+                              R$ {deposit.amount.toFixed(2)}
+                            </span>
+                            <button
+                              onClick={() => handleStartEditDeposit(deposit)}
+                              className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                              title="Editar depósito"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}

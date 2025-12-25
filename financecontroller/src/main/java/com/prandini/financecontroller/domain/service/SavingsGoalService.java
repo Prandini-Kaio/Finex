@@ -76,5 +76,39 @@ public class SavingsGoalService {
     public List<SavingsDeposit> listAllDeposits() {
         return savingsDepositRepository.findAllOrderByDateDesc();
     }
+
+    @Transactional
+    public SavingsGoal updateDeposit(Long depositId, DepositRequest request) {
+        SavingsDeposit deposit = savingsDepositRepository.findById(depositId)
+                .orElseThrow(() -> new ResourceNotFoundException("Depósito não encontrado: " + depositId));
+        
+        SavingsGoal goal = deposit.getGoal();
+        if (goal == null) {
+            throw new ResourceNotFoundException("Objetivo não encontrado para o depósito: " + depositId);
+        }
+
+        BigDecimal oldAmount = deposit.getAmount();
+        BigDecimal newAmount = request.amount();
+        BigDecimal difference = newAmount.subtract(oldAmount);
+
+        Person person = null;
+        if (request.personId() != null) {
+            person = personRepository.findById(request.personId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.personId()));
+        }
+
+        deposit.setAmount(newAmount);
+        deposit.setDate(request.date());
+        deposit.setPerson(person);
+        deposit.setObservacao(request.observacao());
+
+        if (goal.getCurrentAmount() == null) {
+            goal.setCurrentAmount(BigDecimal.ZERO);
+        }
+        goal.setCurrentAmount(goal.getCurrentAmount().add(difference));
+
+        savingsDepositRepository.save(deposit);
+        return savingsGoalRepository.save(goal);
+    }
 }
 

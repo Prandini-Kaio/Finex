@@ -45,6 +45,7 @@ interface FinanceActions {
   addSavingsGoal: (payload: SavingsGoalPayload) => Promise<SavingsGoal>
   deleteSavingsGoal: (id: number) => Promise<void>
   addDeposit: (payload: DepositPayload) => Promise<SavingsGoal>
+  updateDeposit: (depositId: number, payload: Omit<DepositPayload, 'goalId'>) => Promise<SavingsGoal>
   importTransactions: (file: File) => Promise<{ totalProcessed: number; successCount: number; errorCount: number; errors: string[] }>
   exportTransactions: (startDate?: string, endDate?: string) => Promise<void>
   addRecurringTransaction: (payload: RecurringTransactionPayload) => Promise<RecurringTransaction>
@@ -186,6 +187,12 @@ export function useFinanceData() {
     return updated
   }, [refresh])
 
+  const updateDeposit = useCallback(async (depositId: number, payload: Omit<DepositPayload, 'goalId'>) => {
+    const updated = await financeService.updateDeposit(depositId, payload)
+    await refresh()
+    return updated
+  }, [refresh])
+
   const importTransactions = useCallback(async (file: File) => {
     try {
       const result = await financeService.importTransactions(file)
@@ -275,6 +282,7 @@ export function useFinanceData() {
       addSavingsGoal,
       deleteSavingsGoal,
       addDeposit,
+      updateDeposit,
       importTransactions,
       exportTransactions,
       addRecurringTransaction,
@@ -303,6 +311,7 @@ export function useFinanceData() {
       addSavingsGoal,
       deleteSavingsGoal,
       addDeposit,
+      updateDeposit,
       importTransactions,
       exportTransactions,
       addRecurringTransaction,

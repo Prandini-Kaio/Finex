@@ -66,6 +66,8 @@ databaseChangeLog:
                     nullable: true
         - sql:
             sql: UPDATE transactions SET person_id = (SELECT id FROM persons WHERE name = transactions.person) WHERE person IS NOT NULL
+        - sql:
+            sql: UPDATE transactions SET person_id = (SELECT id FROM persons WHERE name = 'Kaio' LIMIT 1) WHERE person_id IS NULL
         - dropColumn:
             tableName: transactions
             columns:
@@ -95,6 +97,8 @@ databaseChangeLog:
                     nullable: true
         - sql:
             sql: UPDATE budgets SET person_id = (SELECT id FROM persons WHERE name = budgets.person) WHERE person IS NOT NULL
+        - sql:
+            sql: UPDATE budgets SET person_id = (SELECT id FROM persons WHERE name = 'Kaio' LIMIT 1) WHERE person_id IS NULL
         - dropColumn:
             tableName: budgets
             columns:
@@ -149,6 +153,8 @@ databaseChangeLog:
                     nullable: true
         - sql:
             sql: UPDATE recurring_transactions SET person_id = (SELECT id FROM persons WHERE name = recurring_transactions.person) WHERE person IS NOT NULL
+        - sql:
+            sql: UPDATE recurring_transactions SET person_id = (SELECT id FROM persons WHERE name = 'Kaio' LIMIT 1) WHERE person_id IS NULL
         - dropColumn:
             tableName: recurring_transactions
             columns:
@@ -178,6 +184,8 @@ databaseChangeLog:
                     nullable: true
         - sql:
             sql: UPDATE credit_cards SET owner_id = (SELECT id FROM persons WHERE name = credit_cards.owner) WHERE owner IS NOT NULL
+        - sql:
+            sql: UPDATE credit_cards SET owner_id = (SELECT id FROM persons WHERE name = 'Kaio' LIMIT 1) WHERE owner_id IS NULL
         - dropColumn:
             tableName: credit_cards
             columns:
@@ -207,6 +215,8 @@ databaseChangeLog:
                     nullable: true
         - sql:
             sql: UPDATE savings_goals SET owner_id = (SELECT id FROM persons WHERE name = savings_goals.owner) WHERE owner IS NOT NULL
+        - sql:
+            sql: UPDATE savings_goals SET owner_id = (SELECT id FROM persons WHERE name = 'Kaio' LIMIT 1) WHERE owner_id IS NULL
         - dropColumn:
             tableName: savings_goals
             columns:
@@ -232,6 +242,8 @@ databaseChangeLog:
                     nullable: true
         - sql:
             sql: UPDATE investments SET owner_id = (SELECT id FROM persons WHERE name = investments.owner) WHERE owner IS NOT NULL
+        - sql:
+            sql: UPDATE investments SET owner_id = (SELECT id FROM persons WHERE name = 'Kaio' LIMIT 1) WHERE owner_id IS NULL
         - dropColumn:
             tableName: investments
             columns:
