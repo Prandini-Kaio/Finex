@@ -45,6 +45,23 @@ public class SavingsGoalService {
     }
 
     @Transactional
+    public SavingsGoal update(Long id, SavingsGoalRequest request) {
+        SavingsGoal goal = savingsGoalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Objetivo não encontrado: " + id));
+        
+        Person owner = personRepository.findById(request.ownerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.ownerId()));
+        
+        goal.setName(request.name());
+        goal.setTargetAmount(request.targetAmount());
+        goal.setDeadline(request.deadline());
+        goal.setOwner(owner);
+        goal.setDescription(request.description());
+        
+        return savingsGoalRepository.save(goal);
+    }
+
+    @Transactional
     public void delete(Long id) {
         if (!savingsGoalRepository.existsById(id)) {
             throw new ResourceNotFoundException("Objetivo não encontrado: " + id);

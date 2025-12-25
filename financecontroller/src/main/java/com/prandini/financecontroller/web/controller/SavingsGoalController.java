@@ -32,6 +32,11 @@ public class SavingsGoalController {
         return FinanceMapper.toResponse(savingsGoalService.create(request));
     }
 
+    @PutMapping("/{id}")
+    public SavingsGoalResponse updateGoal(@PathVariable Long id, @RequestBody SavingsGoalRequest request) {
+        return FinanceMapper.toResponse(savingsGoalService.update(id, request));
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteGoal(@PathVariable Long id) {

@@ -49,6 +49,13 @@ export const SavingsView: React.FC = () => {
   const [editDepositDate, setEditDepositDate] = useState('')
   const [editDepositPerson, setEditDepositPerson] = useState('')
   const [editDepositObservacao, setEditDepositObservacao] = useState('')
+  const [editingGoalId, setEditingGoalId] = useState<number | null>(null)
+  const [editGoalName, setEditGoalName] = useState('')
+  const [editGoalTargetAmount, setEditGoalTargetAmount] = useState('')
+  const [editGoalDeadline, setEditGoalDeadline] = useState('')
+  const [editGoalDescription, setEditGoalDescription] = useState('')
+  const [editGoalOwner, setEditGoalOwner] = useState('')
+  const [showDepositsForGoal, setShowDepositsForGoal] = useState<number | null>(null)
 
   useEffect(() => {
     if (showAllDeposits) {
@@ -203,6 +210,38 @@ export const SavingsView: React.FC = () => {
       observacao: editDepositObservacao || undefined,
     })
     handleCancelEditDeposit()
+  }
+
+  const handleStartEditGoal = (goal: typeof savingsGoals[0]) => {
+    setEditingGoalId(goal.id)
+    setEditGoalName(goal.name)
+    setEditGoalTargetAmount(goal.targetAmount.toString())
+    setEditGoalDeadline(goal.deadline || '')
+    setEditGoalDescription(goal.description || '')
+    setEditGoalOwner(goal.owner)
+  }
+
+  const handleCancelEditGoal = () => {
+    setEditingGoalId(null)
+    setEditGoalName('')
+    setEditGoalTargetAmount('')
+    setEditGoalDeadline('')
+    setEditGoalDescription('')
+    setEditGoalOwner('')
+  }
+
+  const handleSaveEditGoal = async () => {
+    if (!editingGoalId || !editGoalName || !editGoalTargetAmount) return
+    const ownerId = getPersonIdByName(persons, editGoalOwner)
+    if (!ownerId) return
+    await actions.updateSavingsGoal(editingGoalId, {
+      name: editGoalName,
+      ownerId,
+      deadline: editGoalDeadline || undefined,
+      description: editGoalDescription || undefined,
+      targetAmount: Number(editGoalTargetAmount),
+    })
+    handleCancelEditGoal()
   }
 
   return (
@@ -478,26 +517,109 @@ export const SavingsView: React.FC = () => {
               {/* Header com badge de conquista */}
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{goal.name}</h3>
-                    {isComplete && (
-                      <span className="px-2 py-1 bg-yellow-400 dark:bg-yellow-600 text-yellow-900 dark:text-yellow-100 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse">
-                        <Award size={12} /> Conquistado!
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{goal.description || 'Sem descrição'}</p>
-                  <p className={`text-sm font-semibold ${motivation.color} flex items-center gap-1`}>
-                    <Sparkles size={14} />
-                    {motivation.text}
-                  </p>
+                  {editingGoalId === goal.id ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Nome
+                          <input
+                            type="text"
+                            value={editGoalName}
+                            onChange={(e) => setEditGoalName(e.target.value)}
+                            className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                          />
+                        </label>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Responsável
+                          <select
+                            value={editGoalOwner}
+                            onChange={(e) => setEditGoalOwner(e.target.value)}
+                            className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                          >
+                            {persons.filter(p => p.active).map((person) => (
+                              <option key={person.id} value={person.name}>{person.name}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Valor alvo (R$)
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editGoalTargetAmount}
+                            onChange={(e) => setEditGoalTargetAmount(e.target.value)}
+                            className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                          />
+                        </label>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Prazo
+                          <input
+                            type="date"
+                            value={editGoalDeadline}
+                            onChange={(e) => setEditGoalDeadline(e.target.value)}
+                            className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                          />
+                        </label>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
+                          Descrição
+                          <input
+                            type="text"
+                            value={editGoalDescription}
+                            onChange={(e) => setEditGoalDescription(e.target.value)}
+                            className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                          />
+                        </label>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleCancelEditGoal}
+                          className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={handleSaveEditGoal}
+                          className="px-4 py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 dark:hover:bg-blue-700"
+                        >
+                          Salvar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{goal.name}</h3>
+                        {isComplete && (
+                          <span className="px-2 py-1 bg-yellow-400 dark:bg-yellow-600 text-yellow-900 dark:text-yellow-100 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse">
+                            <Award size={12} /> Conquistado!
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{goal.description || 'Sem descrição'}</p>
+                      <p className={`text-sm font-semibold ${motivation.color} flex items-center gap-1`}>
+                        <Sparkles size={14} />
+                        {motivation.text}
+                      </p>
+                    </>
+                  )}
                 </div>
-                <button
-                  onClick={() => actions.deleteSavingsGoal(goal.id)}
-                  className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
-                >
-                  <Trash2 size={18} />
-                </button>
+                {editingGoalId !== goal.id && (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => handleStartEditGoal(goal)}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 p-1 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                      title="Editar objetivo"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => actions.deleteSavingsGoal(goal.id)}
+                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Progresso visual melhorado */}
@@ -542,21 +664,29 @@ export const SavingsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Timeline de depósitos */}
-              {goal.deposits.length > 0 && (
-                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                      <Calendar size={12} />
-                      Últimos depósitos ({depositsCount})
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+              {/* Lista completa de depósitos */}
+              <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                    <Calendar size={12} />
+                    Depósitos ({depositsCount})
+                  </span>
+                  {goal.deposits.length > 0 && (
+                    <button
+                      onClick={() => setShowDepositsForGoal(showDepositsForGoal === goal.id ? null : goal.id)}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                    >
+                      {showDepositsForGoal === goal.id ? 'Ocultar' : 'Ver todos'}
+                    </button>
+                  )}
+                </div>
+                {goal.deposits.length > 0 ? (
+                  <div className="space-y-1.5">
                     {goal.deposits
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .slice(0, 3)
-                      .map((deposit, idx) => (
-                        <div key={deposit.id || idx}>
+                      .slice(0, showDepositsForGoal === goal.id ? goal.deposits.length : 3)
+                      .map((deposit) => (
+                        <div key={deposit.id}>
                           {editingDepositId === deposit.id ? (
                             <div className="space-y-2 bg-white dark:bg-slate-800 rounded-lg p-3 border-2 border-blue-300 dark:border-blue-700">
                               <div className="grid grid-cols-2 gap-2">
@@ -621,7 +751,7 @@ export const SavingsView: React.FC = () => {
                             <div className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 rounded px-2 py-1.5 border border-gray-200 dark:border-slate-600">
                               <div className="flex items-center gap-2 flex-1">
                                 <span className="text-gray-600 dark:text-gray-300">
-                                  {new Date(deposit.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                  {new Date(deposit.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: showDepositsForGoal === goal.id ? 'numeric' : undefined })}
                                 </span>
                                 {deposit.person && (
                                   <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] font-medium">
@@ -650,14 +780,16 @@ export const SavingsView: React.FC = () => {
                           )}
                         </div>
                       ))}
-                    {goal.deposits.length > 3 && (
+                    {goal.deposits.length > 3 && showDepositsForGoal !== goal.id && (
                       <p className="text-xs text-center text-gray-500 dark:text-gray-400 pt-1">
                         +{goal.deposits.length - 3} depósito{goal.deposits.length - 3 !== 1 ? 's' : ''} anterior{goal.deposits.length - 3 !== 1 ? 'es' : ''}
                       </p>
                     )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-xs text-center text-gray-500 dark:text-gray-400 py-2">Nenhum depósito ainda</p>
+                )}
+              </div>
 
               {/* Informações adicionais */}
               <div className="flex flex-wrap gap-2 text-xs">

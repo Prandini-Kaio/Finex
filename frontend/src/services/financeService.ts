@@ -117,6 +117,12 @@ export const financeService = {
       body: payload,
     })
   },
+  updateSavingsGoal(id: number, payload: SavingsGoalPayload): Promise<SavingsGoal> {
+    return httpClient<SavingsGoal>(`/api/savings-goals/${id}`, {
+      method: 'PUT',
+      body: payload,
+    })
+  },
   deleteSavingsGoal(id: number): Promise<void> {
     return httpClient<void>(`/api/savings-goals/${id}`, {
       method: 'DELETE',

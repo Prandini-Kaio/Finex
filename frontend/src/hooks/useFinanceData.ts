@@ -43,6 +43,7 @@ interface FinanceActions {
   addCreditCard: (payload: CreditCardPayload) => Promise<CreditCard>
   deleteCreditCard: (id: number) => Promise<void>
   addSavingsGoal: (payload: SavingsGoalPayload) => Promise<SavingsGoal>
+  updateSavingsGoal: (id: number, payload: SavingsGoalPayload) => Promise<SavingsGoal>
   deleteSavingsGoal: (id: number) => Promise<void>
   addDeposit: (payload: DepositPayload) => Promise<SavingsGoal>
   updateDeposit: (depositId: number, payload: Omit<DepositPayload, 'goalId'>) => Promise<SavingsGoal>
@@ -176,6 +177,12 @@ export function useFinanceData() {
     return created
   }, [refresh])
 
+  const updateSavingsGoal = useCallback(async (id: number, payload: SavingsGoalPayload) => {
+    const updated = await financeService.updateSavingsGoal(id, payload)
+    await refresh()
+    return updated
+  }, [refresh])
+
   const deleteSavingsGoal = useCallback(async (id: number) => {
     await financeService.deleteSavingsGoal(id)
     await refresh()
@@ -280,6 +287,7 @@ export function useFinanceData() {
       addCreditCard,
       deleteCreditCard,
       addSavingsGoal,
+      updateSavingsGoal,
       deleteSavingsGoal,
       addDeposit,
       updateDeposit,
@@ -309,6 +317,7 @@ export function useFinanceData() {
       addCreditCard,
       deleteCreditCard,
       addSavingsGoal,
+      updateSavingsGoal,
       deleteSavingsGoal,
       addDeposit,
       updateDeposit,
