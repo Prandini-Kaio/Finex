@@ -1,9 +1,11 @@
 package com.prandini.financecontroller.domain.service;
 
 import com.prandini.financecontroller.domain.model.CreditCard;
+import com.prandini.financecontroller.domain.model.Person;
 import com.prandini.financecontroller.domain.model.RecurringTransaction;
 import com.prandini.financecontroller.domain.model.Transaction;
 import com.prandini.financecontroller.domain.repository.CreditCardRepository;
+import com.prandini.financecontroller.domain.repository.PersonRepository;
 import com.prandini.financecontroller.domain.repository.RecurringTransactionRepository;
 import com.prandini.financecontroller.domain.repository.TransactionRepository;
 import com.prandini.financecontroller.web.dto.RecurringTransactionRequest;
@@ -24,6 +26,7 @@ public class RecurringTransactionService {
     private final RecurringTransactionRepository recurringTransactionRepository;
     private final CreditCardRepository creditCardRepository;
     private final TransactionRepository transactionRepository;
+    private final PersonRepository personRepository;
 
     public List<RecurringTransaction> listAll() {
         return recurringTransactionRepository.findAll(Sort.by(Sort.Direction.ASC, "startDate", "id"));
@@ -31,11 +34,14 @@ public class RecurringTransactionService {
 
     @Transactional
     public RecurringTransaction create(RecurringTransactionRequest request) {
+        Person person = personRepository.findById(request.personId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.personId()));
+        
         RecurringTransaction recurring = RecurringTransaction.builder()
                 .description(request.description())
                 .type(request.type())
                 .paymentMethod(request.paymentMethod())
-                .person(request.person())
+                .person(person)
                 .category(request.category())
                 .value(request.value())
                 .startDate(request.startDate())
@@ -59,10 +65,13 @@ public class RecurringTransactionService {
         RecurringTransaction recurring = recurringTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Lançamento fixo não encontrado: " + id));
 
+        Person person = personRepository.findById(request.personId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.personId()));
+
         recurring.setDescription(request.description());
         recurring.setType(request.type());
         recurring.setPaymentMethod(request.paymentMethod());
-        recurring.setPerson(request.person());
+        recurring.setPerson(person);
         recurring.setCategory(request.category());
         recurring.setValue(request.value());
         recurring.setStartDate(request.startDate());

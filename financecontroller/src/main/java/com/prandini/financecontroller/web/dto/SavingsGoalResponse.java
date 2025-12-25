@@ -1,7 +1,5 @@
 package com.prandini.financecontroller.web.dto;
 
-import com.prandini.financecontroller.domain.model.enums.Person;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -13,7 +11,7 @@ public record SavingsGoalResponse(
         BigDecimal targetAmount,
         BigDecimal currentAmount,
         LocalDate deadline,
-        Person owner,
+        String owner,
         String description,
         LocalDateTime createdAt,
         List<SavingsDepositResponse> deposits

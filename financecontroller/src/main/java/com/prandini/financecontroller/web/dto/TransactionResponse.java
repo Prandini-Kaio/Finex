@@ -1,7 +1,6 @@
 package com.prandini.financecontroller.web.dto;
 
 import com.prandini.financecontroller.domain.model.enums.PaymentMethod;
-import com.prandini.financecontroller.domain.model.enums.Person;
 import com.prandini.financecontroller.domain.model.enums.TransactionType;
 
 import java.math.BigDecimal;
@@ -12,7 +11,7 @@ public record TransactionResponse(
         LocalDate date,
         TransactionType type,
         PaymentMethod paymentMethod,
-        Person person,
+        String person,
         String category,
         String description,
         BigDecimal value,

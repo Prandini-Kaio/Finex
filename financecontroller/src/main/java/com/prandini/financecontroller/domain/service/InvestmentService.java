@@ -1,7 +1,9 @@
 package com.prandini.financecontroller.domain.service;
 
 import com.prandini.financecontroller.domain.model.Investment;
+import com.prandini.financecontroller.domain.model.Person;
 import com.prandini.financecontroller.domain.repository.InvestmentRepository;
+import com.prandini.financecontroller.domain.repository.PersonRepository;
 import com.prandini.financecontroller.web.dto.InvestmentRequest;
 import com.prandini.financecontroller.web.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import java.util.List;
 public class InvestmentService {
 
     private final InvestmentRepository investmentRepository;
+    private final PersonRepository personRepository;
 
     public List<Investment> listAll() {
         return investmentRepository.findAll(Sort.by(Sort.Direction.DESC, "investmentDate", "id"));
@@ -23,10 +26,13 @@ public class InvestmentService {
 
     @Transactional
     public Investment create(InvestmentRequest request) {
+        Person owner = personRepository.findById(request.ownerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.ownerId()));
+        
         Investment investment = Investment.builder()
                 .name(request.name())
                 .type(request.type())
-                .owner(request.owner())
+                .owner(owner)
                 .investedAmount(request.investedAmount())
                 .investmentDate(request.investmentDate())
                 .annualRate(request.annualRate())
@@ -42,9 +48,12 @@ public class InvestmentService {
         Investment investment = investmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Investimento não encontrado: " + id));
 
+        Person owner = personRepository.findById(request.ownerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.ownerId()));
+
         investment.setName(request.name());
         investment.setType(request.type());
-        investment.setOwner(request.owner());
+        investment.setOwner(owner);
         investment.setInvestedAmount(request.investedAmount());
         investment.setInvestmentDate(request.investmentDate());
         investment.setAnnualRate(request.annualRate());

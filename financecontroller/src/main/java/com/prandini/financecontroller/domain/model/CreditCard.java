@@ -1,6 +1,5 @@
 package com.prandini.financecontroller.domain.model;
 
-import com.prandini.financecontroller.domain.model.enums.Person;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,7 +20,8 @@ public class CreditCard {
 
     private String name;
 
-    @Enumerated(EnumType.STRING)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
     private Person owner;
 
     private Integer closingDay;

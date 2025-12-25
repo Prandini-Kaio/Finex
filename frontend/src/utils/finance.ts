@@ -7,6 +7,10 @@ export const DEFAULT_FILTERS: FinanceFilters = {
   creditCard: 'Todos',
 }
 
+export function getPersonIdByName(persons: Person[], name: string): number | undefined {
+  return persons.find(p => p.name === name)?.id
+}
+
 export function getCurrentCompetency(): string {
   const now = new Date()
   return `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
@@ -45,20 +49,21 @@ export function buildInstallments(form: {
   date: string
   type: Transaction['type']
   paymentMethod: Transaction['paymentMethod']
-  person: Person
+  person: string
   category: string
   description: string
   value: number
   competency: string
   creditCard?: string
   installments: number
+  personId: number
 }): TransactionPayload[] {
   const installments = form.installments || 1
   const base: TransactionPayload = {
     date: form.date,
     type: form.type,
     paymentMethod: form.paymentMethod,
-    person: form.person,
+    personId: form.personId,
     category: form.category,
     description: form.description,
     value: Number(form.value),
@@ -100,6 +105,35 @@ export function getSavingsProgress(goals: SavingsGoal[]) {
     totalSaved,
     totalGoals,
     percentage: totalGoals > 0 ? (totalSaved / totalGoals) * 100 : 0,
+  }
+}
+
+export function getFirstInstallmentCompetency(purchaseDate: string): string {
+  const date = new Date(purchaseDate)
+  return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
+}
+
+export function getInstallmentPreview(purchaseDate: string, totalValue: number, installments: number) {
+  if (!purchaseDate || !totalValue || !installments || installments < 1) {
+    return null
+  }
+
+  const purchaseDateObj = new Date(purchaseDate)
+  const firstCompetency = getFirstInstallmentCompetency(purchaseDate)
+  const installmentValue = totalValue / installments
+  
+  const allCompetencies = Array.from({ length: installments }).map((_, index) => {
+    const competencyDate = new Date(purchaseDateObj)
+    competencyDate.setMonth(purchaseDateObj.getMonth() + index)
+    return `${String(competencyDate.getMonth() + 1).padStart(2, '0')}/${competencyDate.getFullYear()}`
+  })
+
+  return {
+    firstCompetency,
+    installmentValue,
+    totalValue,
+    installments,
+    allCompetencies,
   }
 }
 

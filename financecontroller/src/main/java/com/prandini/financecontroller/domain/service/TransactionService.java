@@ -1,8 +1,10 @@
 package com.prandini.financecontroller.domain.service;
 
 import com.prandini.financecontroller.domain.model.CreditCard;
+import com.prandini.financecontroller.domain.model.Person;
 import com.prandini.financecontroller.domain.model.Transaction;
 import com.prandini.financecontroller.domain.repository.CreditCardRepository;
+import com.prandini.financecontroller.domain.repository.PersonRepository;
 import com.prandini.financecontroller.domain.repository.TransactionRepository;
 import com.prandini.financecontroller.web.dto.TransactionRequest;
 import com.prandini.financecontroller.web.exception.ResourceNotFoundException;
@@ -20,6 +22,7 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final CreditCardRepository creditCardRepository;
+    private final PersonRepository personRepository;
 
     public List<Transaction> listAll() {
         return transactionRepository.findAll(Sort.by(Sort.Direction.DESC, "date", "id"));
@@ -27,11 +30,14 @@ public class TransactionService {
 
     @Transactional
     public Transaction create(TransactionRequest request) {
+        Person person = personRepository.findById(request.personId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.personId()));
+        
         Transaction transaction = Transaction.builder()
                 .date(request.date())
                 .type(request.type())
                 .paymentMethod(request.paymentMethod())
-                .person(request.person())
+                .person(person)
                 .category(request.category())
                 .description(request.description())
                 .value(request.value())
@@ -55,10 +61,13 @@ public class TransactionService {
         Transaction transaction = transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada: " + id));
 
+        Person person = personRepository.findById(request.personId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.personId()));
+
         transaction.setDate(request.date());
         transaction.setType(request.type());
         transaction.setPaymentMethod(request.paymentMethod());
-        transaction.setPerson(request.person());
+        transaction.setPerson(person);
         transaction.setCategory(request.category());
         transaction.setDescription(request.description());
         transaction.setValue(request.value());

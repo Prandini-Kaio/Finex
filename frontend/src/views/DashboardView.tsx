@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { DollarSign, TrendingDown, TrendingUp } from 'lucide-react'
+import { useMemo, useState, useEffect, useRef } from 'react'
+import { DollarSign, TrendingDown, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -67,7 +67,7 @@ const defaultSimulator: SimulatorForm = {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onMonthChange, transactions }) => {
   const {
-    state: { savingsGoals, transactions: allTransactions },
+    state: { savingsGoals, transactions: allTransactions, persons },
   } = useFinance()
 
   const [showSimulator, setShowSimulator] = useState(false)
@@ -78,19 +78,70 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     totalInterest: number
     installmentsTable?: Array<{ installment: number; month: string; value: number; projectedBalance: number }>
   } | null>(null)
+  const [selectedPersons, setSelectedPersons] = useState<string[]>(() => {
+    const saved = localStorage.getItem('dashboard_selected_persons')
+    if (saved) {
+      try {
+        const savedNames = JSON.parse(saved) as string[]
+        const activePersonNames = persons.filter(p => p.active).map(p => p.name)
+        return savedNames.filter(name => activePersonNames.includes(name))
+      } catch {
+        return persons.filter(p => p.active).map(p => p.name)
+      }
+    }
+    return persons.filter(p => p.active).map(p => p.name)
+  })
+  const [showPersonSelector, setShowPersonSelector] = useState(false)
+  const personSelectorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (personSelectorRef.current && !personSelectorRef.current.contains(event.target as Node)) {
+        setShowPersonSelector(false)
+      }
+    }
+
+    if (showPersonSelector) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showPersonSelector])
+
+  useEffect(() => {
+    localStorage.setItem('dashboard_selected_persons', JSON.stringify(selectedPersons))
+  }, [selectedPersons])
+
+  useEffect(() => {
+    const activePersonNames = persons.filter(p => p.active).map(p => p.name)
+    setSelectedPersons(prev => {
+      const filtered = prev.filter(name => activePersonNames.includes(name))
+      if (filtered.length === 0 && activePersonNames.length > 0) {
+        return activePersonNames
+      }
+      return filtered
+    })
+  }, [persons])
+
+  const filteredTransactions = useMemo(() => {
+    if (selectedPersons.length === 0) return []
+    return transactions.filter((t) => selectedPersons.includes(t.person))
+  }, [transactions, selectedPersons])
 
   const stats = useMemo(() => {
-    const expenses = transactions.filter((t) => t.type === 'Despesa').reduce((sum, t) => sum + t.value, 0)
-    const income = transactions.filter((t) => t.type === 'Receita').reduce((sum, t) => sum + t.value, 0)
+    const expenses = filteredTransactions.filter((t) => t.type === 'Despesa').reduce((sum, t) => sum + t.value, 0)
+    const income = filteredTransactions.filter((t) => t.type === 'Receita').reduce((sum, t) => sum + t.value, 0)
 
-    const byCategory = transactions
+    const byCategory = filteredTransactions
       .filter((t) => t.type === 'Despesa')
       .reduce<Record<string, number>>((acc, transaction) => {
         acc[transaction.category] = (acc[transaction.category] ?? 0) + transaction.value
         return acc
       }, {})
 
-    const byPerson = transactions
+    const byPerson = filteredTransactions
       .filter((t) => t.type === 'Despesa')
       .reduce<Record<string, number>>((acc, transaction) => {
         acc[transaction.person] = (acc[transaction.person] ?? 0) + transaction.value
@@ -104,7 +155,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       byCategory,
       byPerson,
     }
-  }, [transactions])
+  }, [filteredTransactions])
 
   const categoryChart = useMemo(
     () =>
@@ -128,10 +179,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     const currentYear = new Date().getFullYear()
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     
-    // Filtrar transações do ano atual
+    // Filtrar transações do ano atual e pessoas selecionadas
     const yearTransactions = allTransactions.filter((t) => {
       const [, year] = t.competency.split('/')
-      return parseInt(year) === currentYear
+      return parseInt(year) === currentYear && selectedPersons.includes(t.person)
     })
 
     // Agrupar por mês
@@ -156,17 +207,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     })
 
     return monthlyData
-  }, [allTransactions])
+  }, [allTransactions, selectedPersons])
 
   // Gráfico de economia/poupança anual
   const annualSavingsChart = useMemo(() => {
     const currentYear = new Date().getFullYear()
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     
-    // Filtrar transações do ano atual
+    // Filtrar transações do ano atual e pessoas selecionadas
     const yearTransactions = allTransactions.filter((t) => {
       const [, year] = t.competency.split('/')
-      return parseInt(year) === currentYear
+      return parseInt(year) === currentYear && selectedPersons.includes(t.person)
     })
 
     // Calcular economia acumulada mês a mês
@@ -194,45 +245,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     })
 
     return monthlySavings
-  }, [allTransactions, savingsGoals])
+  }, [allTransactions, savingsGoals, selectedPersons])
 
-  // Visualizador rápido de Kaio e Gabriela
   const personStats = useMemo(() => {
-    // Kaio
-    const kaioExpenses = transactions
-      .filter((t) => t.type === 'Despesa' && (t.person === 'Kaio' || t.person === 'Ambos'))
-      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+    const stats: Record<string, { income: number; expenses: number; balance: number }> = {}
+    
+    persons.filter(p => p.active && selectedPersons.includes(p.name)).forEach((person) => {
+      const personExpenses = filteredTransactions
+        .filter((t) => t.type === 'Despesa' && (t.person === person.name || t.person === 'Ambos'))
+        .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
 
-    const kaioIncome = transactions
-      .filter((t) => t.type === 'Receita' && (t.person === 'Kaio' || t.person === 'Ambos'))
-      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+      const personIncome = filteredTransactions
+        .filter((t) => t.type === 'Receita' && (t.person === person.name || t.person === 'Ambos'))
+        .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
 
-    const kaioBalance = kaioIncome - kaioExpenses
+      stats[person.name] = {
+        income: personIncome,
+        expenses: personExpenses,
+        balance: personIncome - personExpenses,
+      }
+    })
 
-    // Gabriela
-    const gabrielaExpenses = transactions
-      .filter((t) => t.type === 'Despesa' && (t.person === 'Gabriela' || t.person === 'Ambos'))
-      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
-
-    const gabrielaIncome = transactions
-      .filter((t) => t.type === 'Receita' && (t.person === 'Gabriela' || t.person === 'Ambos'))
-      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
-
-    const gabrielaBalance = gabrielaIncome - gabrielaExpenses
-
-    return {
-      kaio: {
-        income: kaioIncome,
-        expenses: kaioExpenses,
-        balance: kaioBalance,
-      },
-      gabriela: {
-        income: gabrielaIncome,
-        expenses: gabrielaExpenses,
-        balance: gabrielaBalance,
-      },
-    }
-  }, [transactions])
+    return stats
+  }, [filteredTransactions, persons, selectedPersons])
 
   const handleSimulator = () => {
     if (!simulatorForm.value) return
@@ -263,8 +298,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       
       const monthKey = `${String(finalMonth).padStart(2, '0')}/${finalYear}`
       
-      // Calcular saldo do mês considerando transações existentes
-      const monthTransactions = allTransactions.filter(t => t.competency === monthKey)
+      // Calcular saldo do mês considerando transações existentes e pessoas selecionadas
+      const monthTransactions = allTransactions.filter(t => t.competency === monthKey && selectedPersons.includes(t.person))
       const monthIncome = monthTransactions
         .filter(t => t.type === 'Receita')
         .reduce((sum, t) => sum + t.value, 0)
@@ -289,11 +324,76 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     })
   }
 
+  const togglePerson = (personName: string) => {
+    setSelectedPersons((prev) =>
+      prev.includes(personName) ? prev.filter((p) => p !== personName) : [...prev, personName]
+    )
+  }
+
+  const selectAllPersons = () => {
+    setSelectedPersons(persons.filter(p => p.active).map(p => p.name))
+  }
+
+  const deselectAllPersons = () => {
+    setSelectedPersons([])
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between gap-4">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Dashboard</h1>
         <div className="flex flex-wrap gap-2">
+          <div className="relative" ref={personSelectorRef}>
+            <button
+              onClick={() => setShowPersonSelector(!showPersonSelector)}
+              className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 border border-gray-300 dark:border-slate-600"
+            >
+              <span>👥 Relação de Renda</span>
+              {showPersonSelector ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+            {showPersonSelector && (
+              <div className="absolute top-full mt-2 right-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-4 z-50 min-w-[200px]">
+                <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-200 dark:border-slate-700">
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Selecionar Pessoas</span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={selectAllPersons}
+                      className="text-xs px-2 py-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
+                    >
+                      Todos
+                    </button>
+                    <button
+                      onClick={deselectAllPersons}
+                      className="text-xs px-2 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                    >
+                      Nenhum
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {persons.filter(p => p.active).map((person) => (
+                    <label
+                      key={person.id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 p-2 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedPersons.includes(person.name)}
+                        onChange={() => togglePerson(person.name)}
+                        className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{person.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedPersons.length > 0 && (
+                  <div className="mt-3 pt-2 border-t border-gray-200 dark:border-slate-700 text-xs text-gray-500 dark:text-gray-400">
+                    {selectedPersons.length} pessoa{selectedPersons.length !== 1 ? 's' : ''} selecionada{selectedPersons.length !== 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <MonthYearSelector value={selectedMonth} onChange={onMonthChange} />
           <button
             onClick={() => setShowSimulator(true)}
@@ -304,140 +404,110 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <SummaryCard
-          title="Receitas"
-          value={`R$ ${stats.income.toFixed(2)}`}
-          icon={<TrendingUp className="text-green-500" size={32} />}
-          accent="border-green-500"
-        />
-        <SummaryCard
-          title="Despesas"
-          value={`R$ ${stats.expenses.toFixed(2)}`}
-          icon={<TrendingDown className="text-red-500" size={32} />}
-          accent="border-red-500"
-        />
-        <SummaryCard
-          title="Saldo do mês"
-          value={`R$ ${stats.balance.toFixed(2)}`}
-          icon={<DollarSign className="text-blue-500" size={32} />}
-          accent={stats.balance >= 0 ? 'border-blue-500' : 'border-orange-500'}
-        />
-        <SummaryCard
-          title="Poupado vs Meta"
-          value={`${savingsInfo.percentage.toFixed(1)}%`}
-          icon={<span className="text-purple-500 text-3xl">🏦</span>}
-          accent="border-purple-500"
-          helper={`R$ ${savingsInfo.totalSaved.toFixed(2)} / R$ ${savingsInfo.totalGoals.toFixed(2)}`}
-        />
-      </div>
-
-      {/* Visualizador Rápido de Kaio e Gabriela */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Kaio */}
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg shadow-lg p-6 border-2 border-blue-300 dark:border-blue-600">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">💰 Kaio</h2>
-            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-200 dark:bg-blue-800 px-3 py-1 rounded-full">
-              {selectedMonth}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow border-l-4 border-green-500 border border-gray-200 dark:border-slate-700">
-              <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Entradas</p>
-              <p className="text-xl font-bold text-green-600 dark:text-green-400">R$ {personStats.kaio.income.toFixed(2)}</p>
-            </div>
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow border-l-4 border-red-500 border border-gray-200 dark:border-slate-700">
-              <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Saídas</p>
-              <p className="text-xl font-bold text-red-600 dark:text-red-400">R$ {personStats.kaio.expenses.toFixed(2)}</p>
-            </div>
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow border-l-4 border-blue-500 border border-gray-200 dark:border-slate-700">
-              <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Saldo</p>
-              <p
-                className={`text-xl font-bold ${
-                  personStats.kaio.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'
-                }`}
-              >
-                R$ {personStats.kaio.balance.toFixed(2)}
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600 dark:text-gray-300">
-                Economia:{' '}
-                <strong className="text-blue-700 dark:text-blue-300">
-                  {personStats.kaio.income > 0
-                    ? ((personStats.kaio.balance / personStats.kaio.income) * 100).toFixed(1)
-                    : 0}
-                  %
-                </strong>
-              </span>
-              <span className="text-gray-600 dark:text-gray-300">
-                Gasto:{' '}
-                <strong className="text-red-700 dark:text-red-300">
-                  {personStats.kaio.income > 0
-                    ? ((personStats.kaio.expenses / personStats.kaio.income) * 100).toFixed(1)
-                    : 0}
-                  %
-                </strong>
-              </span>
-            </div>
-          </div>
+      {selectedPersons.length === 0 ? (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 text-center">
+          <p className="text-yellow-800 dark:text-yellow-300 font-semibold">
+            ⚠️ Nenhuma pessoa selecionada
+          </p>
+          <p className="text-yellow-600 dark:text-yellow-400 text-sm mt-2">
+            Selecione pelo menos uma pessoa no seletor "Relação de Renda" para visualizar os dados do dashboard.
+          </p>
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <SummaryCard
+              title="Receitas"
+              value={`R$ ${stats.income.toFixed(2)}`}
+              icon={<TrendingUp className="text-green-500" size={32} />}
+              accent="border-green-500"
+            />
+            <SummaryCard
+              title="Despesas"
+              value={`R$ ${stats.expenses.toFixed(2)}`}
+              icon={<TrendingDown className="text-red-500" size={32} />}
+              accent="border-red-500"
+            />
+            <SummaryCard
+              title="Saldo do mês"
+              value={`R$ ${stats.balance.toFixed(2)}`}
+              icon={<DollarSign className="text-blue-500" size={32} />}
+              accent={stats.balance >= 0 ? 'border-blue-500' : 'border-orange-500'}
+            />
+            <SummaryCard
+              title="Poupado vs Meta"
+              value={`${savingsInfo.percentage.toFixed(1)}%`}
+              icon={<span className="text-purple-500 text-3xl">🏦</span>}
+              accent="border-purple-500"
+              helper={`R$ ${savingsInfo.totalSaved.toFixed(2)} / R$ ${savingsInfo.totalGoals.toFixed(2)}`}
+            />
+          </div>
 
-        {/* Gabriela */}
-        <div className="bg-gradient-to-r from-pink-50 to-pink-100 rounded-lg shadow-lg p-6 border-2 border-pink-300">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">💰 Gabriela</h2>
-            <span className="text-sm font-semibold text-pink-700 bg-pink-200 px-3 py-1 rounded-full">
-              {selectedMonth}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white rounded-lg p-3 shadow border-l-4 border-green-500">
-              <p className="text-xs text-gray-600 mb-1">Entradas</p>
-              <p className="text-xl font-bold text-green-600">R$ {personStats.gabriela.income.toFixed(2)}</p>
-            </div>
-            <div className="bg-white rounded-lg p-3 shadow border-l-4 border-red-500">
-              <p className="text-xs text-gray-600 mb-1">Saídas</p>
-              <p className="text-xl font-bold text-red-600">R$ {personStats.gabriela.expenses.toFixed(2)}</p>
-            </div>
-            <div className="bg-white rounded-lg p-3 shadow border-l-4 border-pink-500">
-              <p className="text-xs text-gray-600 mb-1">Saldo</p>
-              <p
-                className={`text-xl font-bold ${
-                  personStats.gabriela.balance >= 0 ? 'text-pink-600' : 'text-orange-600'
-                }`}
-              >
-                R$ {personStats.gabriela.balance.toFixed(2)}
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-pink-200">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600">
-                Economia:{' '}
-                <strong className="text-pink-700">
-                  {personStats.gabriela.income > 0
-                    ? ((personStats.gabriela.balance / personStats.gabriela.income) * 100).toFixed(1)
-                    : 0}
-                  %
-                </strong>
-              </span>
-              <span className="text-gray-600">
-                Gasto:{' '}
-                <strong className="text-red-700">
-                  {personStats.gabriela.income > 0
-                    ? ((personStats.gabriela.expenses / personStats.gabriela.income) * 100).toFixed(1)
-                    : 0}
-                  %
-                </strong>
-              </span>
-            </div>
-          </div>
+      {Object.keys(personStats).length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {persons
+            .filter(p => p.active && selectedPersons.includes(p.name))
+            .map((person, index) => {
+              const stats = personStats[person.name]
+              if (!stats) return null
+              
+              const colors = [
+                { bg: 'from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30', border: 'border-blue-300 dark:border-blue-600', text: 'text-blue-700 dark:text-blue-300', bgBadge: 'bg-blue-200 dark:bg-blue-800', borderCard: 'border-blue-500' },
+                { bg: 'from-pink-50 to-pink-100 dark:from-pink-900/30 dark:to-pink-800/30', border: 'border-pink-300 dark:border-pink-600', text: 'text-pink-700 dark:text-pink-300', bgBadge: 'bg-pink-200 dark:bg-pink-800', borderCard: 'border-pink-500' },
+                { bg: 'from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30', border: 'border-purple-300 dark:border-purple-600', text: 'text-purple-700 dark:text-purple-300', bgBadge: 'bg-purple-200 dark:bg-purple-800', borderCard: 'border-purple-500' },
+                { bg: 'from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30', border: 'border-green-300 dark:border-green-600', text: 'text-green-700 dark:text-green-300', bgBadge: 'bg-green-200 dark:bg-green-800', borderCard: 'border-green-500' },
+              ]
+              const colorScheme = colors[index % colors.length]
+              
+              return (
+                <div key={person.id} className={`bg-gradient-to-r ${colorScheme.bg} rounded-lg shadow-lg p-6 border-2 ${colorScheme.border}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">💰 {person.name}</h2>
+                    <span className={`text-sm font-semibold ${colorScheme.text} ${colorScheme.bgBadge} px-3 py-1 rounded-full`}>
+                      {selectedMonth}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow border-l-4 border-green-500 border border-gray-200 dark:border-slate-700">
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Entradas</p>
+                      <p className="text-xl font-bold text-green-600 dark:text-green-400">R$ {stats.income.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow border-l-4 border-red-500 border border-gray-200 dark:border-slate-700">
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Saídas</p>
+                      <p className="text-xl font-bold text-red-600 dark:text-red-400">R$ {stats.expenses.toFixed(2)}</p>
+                    </div>
+                    <div className={`bg-white dark:bg-slate-800 rounded-lg p-3 shadow border-l-4 ${colorScheme.borderCard} border border-gray-200 dark:border-slate-700`}>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Saldo</p>
+                      <p
+                        className={`text-xl font-bold ${
+                          stats.balance >= 0 ? `${colorScheme.text}` : 'text-orange-600 dark:text-orange-400'
+                        }`}
+                      >
+                        R$ {stats.balance.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`mt-3 pt-3 border-t ${colorScheme.border.replace('300', '200').replace('600', '700')}`}>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600 dark:text-gray-300">
+                        Economia:{' '}
+                        <strong className={colorScheme.text}>
+                          {stats.income > 0 ? ((stats.balance / stats.income) * 100).toFixed(1) : 0}%
+                        </strong>
+                      </span>
+                      <span className="text-gray-600 dark:text-gray-300">
+                        Gasto:{' '}
+                        <strong className="text-red-700 dark:text-red-300">
+                          {stats.income > 0 ? ((stats.expenses / stats.income) * 100).toFixed(1) : 0}%
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
@@ -594,6 +664,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
           )}
         </div>
       </div>
+        </>
+      )}
 
       {showSimulator && (
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50">

@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
-import { Plus, Trash2, TrendingUp, Target, Award, Sparkles, Calendar, DollarSign } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
+import { Plus, Trash2, TrendingUp, Target, Award, Sparkles, Calendar, DollarSign, List } from 'lucide-react'
+import { financeService } from '../services/financeService'
+import type { SavingsDeposit } from '../types/finance'
 import {
   Bar,
   BarChart,
@@ -16,9 +18,10 @@ import {
   Legend,
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
-import type { Person, SavingsGoalPayload } from '../types/finance'
+import type { SavingsGoalPayload } from '../types/finance'
+import { getPersonIdByName } from '../utils/finance'
 
-const goalFormDefaults = (): Omit<SavingsGoalPayload, 'targetAmount'> & { targetAmount: string } => ({
+const goalFormDefaults = (): Omit<SavingsGoalPayload, 'targetAmount' | 'ownerId'> & { targetAmount: string; owner: string } => ({
   name: '',
   owner: 'Kaio',
   deadline: '',
@@ -28,7 +31,7 @@ const goalFormDefaults = (): Omit<SavingsGoalPayload, 'targetAmount'> & { target
 
 export const SavingsView: React.FC = () => {
   const {
-    state: { savingsGoals },
+    state: { savingsGoals, persons },
     actions,
   } = useFinance()
 
@@ -36,7 +39,21 @@ export const SavingsView: React.FC = () => {
   const [depositGoalId, setDepositGoalId] = useState<number | null>(null)
   const [depositValue, setDepositValue] = useState('')
   const [depositDate, setDepositDate] = useState(new Date().toISOString().split('T')[0])
-  const [depositPerson, setDepositPerson] = useState<Person>('Kaio')
+  const [depositPerson, setDepositPerson] = useState<string>(persons.find(p => p.active)?.name || '')
+  const [depositObservacao, setDepositObservacao] = useState('')
+  const [showAllDeposits, setShowAllDeposits] = useState(false)
+  const [allDeposits, setAllDeposits] = useState<SavingsDeposit[]>([])
+  const [loadingDeposits, setLoadingDeposits] = useState(false)
+
+  useEffect(() => {
+    if (showAllDeposits) {
+      setLoadingDeposits(true)
+      financeService.getAllDeposits()
+        .then(setAllDeposits)
+        .catch(console.error)
+        .finally(() => setLoadingDeposits(false))
+    }
+  }, [showAllDeposits, savingsGoals])
 
   const totalSaved = useMemo(() => savingsGoals.reduce((sum, goal) => sum + goal.currentAmount, 0), [savingsGoals])
   const totalTarget = useMemo(() => savingsGoals.reduce((sum, goal) => sum + goal.targetAmount, 0), [savingsGoals])
@@ -125,9 +142,11 @@ export const SavingsView: React.FC = () => {
 
   const handleCreateGoal = async () => {
     if (!goalForm.name || !goalForm.targetAmount) return
+    const ownerId = getPersonIdByName(persons, goalForm.owner)
+    if (!ownerId) return
     await actions.addSavingsGoal({
       name: goalForm.name,
-      owner: goalForm.owner,
+      ownerId,
       deadline: goalForm.deadline,
       description: goalForm.description,
       targetAmount: Number(goalForm.targetAmount),
@@ -137,15 +156,19 @@ export const SavingsView: React.FC = () => {
 
   const handleDeposit = async () => {
     if (!depositGoalId || !depositValue) return
+    const personId = getPersonIdByName(persons, depositPerson)
+    if (!personId) return
     await actions.addDeposit({
       goalId: depositGoalId,
       amount: Number(depositValue),
       date: depositDate,
-      person: depositPerson,
+      personId,
+      observacao: depositObservacao || undefined,
     })
     setDepositGoalId(null)
     setDepositValue('')
-    setDepositPerson('Kaio')
+    setDepositPerson(persons.find(p => p.active)?.name || '')
+    setDepositObservacao('')
   }
 
   return (
@@ -340,12 +363,12 @@ export const SavingsView: React.FC = () => {
             Responsável
             <select
               value={goalForm.owner}
-              onChange={(event) => setGoalForm({ ...goalForm, owner: event.target.value as Person })}
+              onChange={(event) => setGoalForm({ ...goalForm, owner: event.target.value })}
               className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
             >
-              <option value="Kaio">Kaio</option>
-              <option value="Gabriela">Gabriela</option>
-              <option value="Ambos">Ambos</option>
+              {persons.filter(p => p.active).map((person) => (
+                <option key={person.id} value={person.name}>{person.name}</option>
+              ))}
             </select>
           </label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -510,6 +533,9 @@ export const SavingsView: React.FC = () => {
                               </span>
                             )}
                           </div>
+                          {deposit.observacao && (
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate">{deposit.observacao}</p>
+                          )}
                           <span className="font-semibold text-green-600 dark:text-green-400">
                             +R$ {deposit.amount.toFixed(2)}
                           </span>
@@ -583,15 +609,26 @@ export const SavingsView: React.FC = () => {
                       Quem depositou
                       <select
                         value={depositPerson}
-                        onChange={(event) => setDepositPerson(event.target.value as Person)}
+                        onChange={(event) => setDepositPerson(event.target.value)}
                         className="mt-1 w-full px-3 py-2 border-2 border-green-300 dark:border-green-700 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       >
-                        <option value="Kaio">Kaio</option>
-                        <option value="Gabriela">Gabriela</option>
+                        {persons.filter(p => p.active).map((person) => (
+                          <option key={person.id} value={person.name}>{person.name}</option>
+                        ))}
                         <option value="Ambos">Ambos</option>
                       </select>
                     </label>
                   </div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Observação
+                    <input
+                      type="text"
+                      value={depositObservacao}
+                      onChange={(event) => setDepositObservacao(event.target.value)}
+                      className="mt-1 w-full px-3 py-2 border-2 border-green-300 dark:border-green-700 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="Opcional"
+                    />
+                  </label>
                   <div className="flex justify-end gap-2 pt-2">
                     <button 
                       className="px-4 py-2 border-2 border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors" 
@@ -621,6 +658,70 @@ export const SavingsView: React.FC = () => {
           <p className="text-xs text-gray-400 dark:text-gray-500">Use o formulário acima para começar ✨</p>
         </div>
       )}
+
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-slate-700">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-full">
+              <List className="text-blue-600 dark:text-blue-400" size={20} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Todos os Depósitos</h3>
+          </div>
+          <button
+            onClick={() => setShowAllDeposits(!showAllDeposits)}
+            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-blue-600 dark:to-indigo-600 text-white rounded-lg text-sm font-semibold hover:from-blue-600 hover:to-indigo-600 dark:hover:from-blue-700 dark:hover:to-indigo-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+          >
+            <List size={16} />
+            {showAllDeposits ? 'Ocultar' : 'Ver Todos'}
+          </button>
+        </div>
+
+        {showAllDeposits && (
+          <div className="mt-4">
+            {loadingDeposits ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">Carregando...</div>
+            ) : allDeposits.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">Nenhum depósito encontrado</div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {allDeposits.map((deposit) => {
+                  const goal = savingsGoals.find(g => g.deposits.some(d => d.id === deposit.id))
+                  return (
+                    <div
+                      key={deposit.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            {new Date(deposit.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                          {goal && (
+                            <span className="px-2 py-1 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium">
+                              {goal.name}
+                            </span>
+                          )}
+                          {deposit.person && (
+                            <span className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium">
+                              {deposit.person}
+                            </span>
+                          )}
+                        </div>
+                        {deposit.observacao && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{deposit.observacao}</p>
+                        )}
+                      </div>
+                      <span className="text-lg font-bold text-green-600 dark:text-green-400 ml-4">
+                        R$ {deposit.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -4,6 +4,7 @@ import com.prandini.financecontroller.domain.service.SavingsGoalService;
 import com.prandini.financecontroller.web.dto.DepositRequest;
 import com.prandini.financecontroller.web.dto.SavingsGoalRequest;
 import com.prandini.financecontroller.web.dto.SavingsGoalResponse;
+import com.prandini.financecontroller.web.dto.SavingsDepositResponse;
 import com.prandini.financecontroller.web.mapper.FinanceMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -40,6 +41,13 @@ public class SavingsGoalController {
     @PostMapping("/{id}/deposits")
     public SavingsGoalResponse addDeposit(@PathVariable Long id, @RequestBody DepositRequest request) {
         return FinanceMapper.toResponse(savingsGoalService.addDeposit(id, request));
+    }
+
+    @GetMapping("/deposits")
+    public List<SavingsDepositResponse> listAllDeposits() {
+        return savingsGoalService.listAllDeposits().stream()
+                .map(FinanceMapper::toResponse)
+                .toList();
     }
 }
 

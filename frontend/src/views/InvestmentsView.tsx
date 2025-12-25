@@ -16,7 +16,8 @@ import {
   Legend,
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
-import type { Investment, InvestmentPayload, InvestmentType, Person } from '../types/finance'
+import type { Investment, InvestmentPayload, InvestmentType } from '../types/finance'
+import { getPersonIdByName } from '../utils/finance'
 
 const INVESTMENT_TYPE_LABELS: Record<InvestmentType, string> = {
   TESOURO_DIRETO: 'Tesouro Direto',
@@ -36,16 +37,16 @@ interface InvestmentsViewProps {}
 
 export const InvestmentsView: React.FC<InvestmentsViewProps> = () => {
   const {
-    state: { investments },
+    state: { investments, persons },
     actions,
   } = useFinance()
 
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [form, setForm] = useState<InvestmentPayload>({
+  const [form, setForm] = useState<Omit<InvestmentPayload, 'ownerId'> & { owner: string }>({
     name: '',
     type: 'TESOURO_DIRETO',
-    owner: 'Kaio',
+    owner: persons.find(p => p.active)?.name || '',
     investedAmount: 0,
     investmentDate: new Date().toISOString().split('T')[0],
     annualRate: undefined,
@@ -83,7 +84,7 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = () => {
     return investments.reduce((acc, inv) => {
       acc[inv.owner] = (acc[inv.owner] || 0) + inv.investedAmount
       return acc
-    }, {} as Record<Person, number>)
+    }, {} as Record<string, number>)
   }, [investments])
 
   // Dados para gráficos
@@ -130,7 +131,7 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = () => {
     setForm({
       name: '',
       type: 'TESOURO_DIRETO',
-      owner: 'Kaio',
+      owner: persons.find(p => p.active)?.name || '',
       investedAmount: 0,
       investmentDate: new Date().toISOString().split('T')[0],
       annualRate: undefined,
@@ -195,11 +196,26 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = () => {
   const handleSubmit = async () => {
     if (!validateForm()) return
 
+    const ownerId = getPersonIdByName(persons, form.owner)
+    if (!ownerId) return
+
+    const payload: InvestmentPayload = {
+      name: form.name,
+      type: form.type,
+      ownerId,
+      investedAmount: form.investedAmount,
+      investmentDate: form.investmentDate,
+      annualRate: form.annualRate,
+      currentValue: form.currentValue,
+      description: form.description,
+      institution: form.institution,
+    }
+
     try {
       if (editingId) {
-        await actions.updateInvestment(editingId, form)
+        await actions.updateInvestment(editingId, payload)
       } else {
-        await actions.addInvestment(form)
+        await actions.addInvestment(payload)
       }
       setShowModal(false)
       setEditingId(null)
@@ -534,12 +550,12 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = () => {
                 Proprietário *
                 <select
                   value={form.owner}
-                  onChange={(e) => setForm({ ...form, owner: e.target.value as Person })}
+                  onChange={(e) => setForm({ ...form, owner: e.target.value })}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 >
-                  <option value="Kaio">Kaio</option>
-                  <option value="Gabriela">Gabriela</option>
-                  <option value="Ambos">Ambos</option>
+                  {persons.filter(p => p.active).map((person) => (
+                    <option key={person.id} value={person.name}>{person.name}</option>
+                  ))}
                 </select>
               </label>
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">

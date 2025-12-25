@@ -1,14 +1,15 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Plus, Trash2, Edit2, Play } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext'
-import type { Person, PaymentMethod, TransactionType, RecurringTransaction, RecurringTransactionPayload } from '../types/finance'
+import type { PaymentMethod, TransactionType, RecurringTransaction, RecurringTransactionPayload } from '../types/finance'
+import { getPersonIdByName } from '../utils/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
 
 type FormState = {
   description: string
   type: TransactionType
   paymentMethod: PaymentMethod
-  person: Person
+  person: string
   category: string
   value: string
   startDate: string
@@ -44,7 +45,7 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
   onMonthChange,
 }) => {
   const {
-    state: { recurringTransactions, categories, creditCards },
+    state: { recurringTransactions, categories, creditCards, persons },
     actions,
   } = useFinance()
 
@@ -65,11 +66,14 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
     if (!form.value || !form.description || !form.startDate || !form.dayOfMonth) return
     if (form.paymentMethod === 'Crédito' && !form.creditCard) return
 
+    const personId = getPersonIdByName(persons, form.person)
+    if (!personId) return
+
     const payload: RecurringTransactionPayload = {
       description: form.description,
       type: form.type,
       paymentMethod: form.paymentMethod,
-      person: form.person,
+      personId,
       category: form.category,
       value: Number(form.value),
       startDate: form.startDate,
@@ -334,12 +338,12 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
                 Pessoa
                 <select
                   value={form.person}
-                  onChange={(e) => setForm({ ...form, person: e.target.value as Person })}
+                  onChange={(e) => setForm({ ...form, person: e.target.value })}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                 >
-                  <option value="Kaio">Kaio</option>
-                  <option value="Gabriela">Gabriela</option>
-                  <option value="Ambos">Ambos</option>
+                  {persons.filter(p => p.active).map((person) => (
+                    <option key={person.id} value={person.name}>{person.name}</option>
+                  ))}
                 </select>
               </label>
               <label className="text-sm font-medium text-gray-700 md:col-span-2">

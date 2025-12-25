@@ -16,7 +16,7 @@ public final class FinanceMapper {
                 transaction.getDate(),
                 transaction.getType(),
                 transaction.getPaymentMethod(),
-                transaction.getPerson(),
+                transaction.getPerson() != null ? transaction.getPerson().getName() : null,
                 transaction.getCategory(),
                 transaction.getDescription(),
                 transaction.getValue(),
@@ -35,7 +35,7 @@ public final class FinanceMapper {
                 budget.getId(),
                 budget.getCompetency(),
                 budget.getCategory(),
-                budget.getPerson(),
+                budget.getPerson() != null ? budget.getPerson().getName() : null,
                 budget.getBudgetType(),
                 budget.getAmount(),
                 budget.getPercentage()
@@ -46,7 +46,7 @@ public final class FinanceMapper {
         return new CreditCardResponse(
                 card.getId(),
                 card.getName(),
-                card.getOwner(),
+                card.getOwner() != null ? card.getOwner().getName() : null,
                 card.getClosingDay(),
                 card.getDueDay(),
                 card.getLimit()
@@ -58,7 +58,8 @@ public final class FinanceMapper {
                 deposit.getId(),
                 deposit.getAmount(),
                 deposit.getDate(),
-                deposit.getPerson()
+                deposit.getPerson() != null ? deposit.getPerson().getName() : null,
+                deposit.getObservacao()
         );
     }
 
@@ -72,7 +73,7 @@ public final class FinanceMapper {
                 goal.getTargetAmount(),
                 goal.getCurrentAmount(),
                 goal.getDeadline(),
-                goal.getOwner(),
+                goal.getOwner() != null ? goal.getOwner().getName() : null,
                 goal.getDescription(),
                 goal.getCreatedAt(),
                 deposits
@@ -85,7 +86,7 @@ public final class FinanceMapper {
                 recurring.getDescription(),
                 recurring.getType(),
                 recurring.getPaymentMethod(),
-                recurring.getPerson(),
+                recurring.getPerson() != null ? recurring.getPerson().getName() : null,
                 recurring.getCategory(),
                 recurring.getValue(),
                 recurring.getStartDate(),
@@ -103,7 +104,7 @@ public final class FinanceMapper {
                 investment.getId(),
                 investment.getName(),
                 investment.getType(),
-                investment.getOwner(),
+                investment.getOwner() != null ? investment.getOwner().getName() : null,
                 investment.getInvestedAmount(),
                 investment.getInvestmentDate(),
                 investment.getAnnualRate(),
@@ -120,10 +121,25 @@ public final class FinanceMapper {
         return new CreditCardInvoiceResponse(
                 card.getId(),
                 card.getName(),
-                card.getOwner(),
+                card.getOwner() != null ? card.getOwner().getName() : null,
                 referenceMonth,
                 paid,
                 paid ? invoice.getPaidAt() : null
+        );
+    }
+
+    public static PersonResponse toResponse(Person person) {
+        List<Long> splitWithPersonIds = person.getSplitWithPersons() != null
+                ? person.getSplitWithPersons().stream()
+                        .map(Person::getId)
+                        .toList()
+                : List.of();
+        return new PersonResponse(
+                person.getId(),
+                person.getName(),
+                person.getActive(),
+                person.getAllowSplit(),
+                splitWithPersonIds
         );
     }
 }

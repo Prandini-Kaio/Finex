@@ -1,7 +1,6 @@
 package com.prandini.financecontroller.web.dto;
 
 import com.prandini.financecontroller.domain.model.enums.InvestmentType;
-import com.prandini.financecontroller.domain.model.enums.Person;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -11,7 +10,7 @@ public record InvestmentResponse(
         Long id,
         String name,
         InvestmentType type,
-        Person owner,
+        String owner,
         BigDecimal investedAmount,
         LocalDate investmentDate,
         BigDecimal annualRate,

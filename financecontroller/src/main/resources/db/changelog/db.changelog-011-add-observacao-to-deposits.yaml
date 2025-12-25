@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-observacao-to-savings-deposits
+      author: system
+      changes:
+        - addColumn:
+            tableName: savings_deposits
+            columns:
+              - column:
+                  name: observacao
+                  type: VARCHAR(500)
+                  constraints:
+                    nullable: true

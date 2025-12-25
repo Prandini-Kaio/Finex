@@ -1,4 +1,10 @@
-export type Person = 'Kaio' | 'Gabriela' | 'Ambos'
+export interface Person {
+  id: number
+  name: string
+  active: boolean
+  allowSplit: boolean
+  splitWithPersonIds?: number[]
+}
 
 export type TransactionType = 'Despesa' | 'Receita'
 
@@ -9,7 +15,7 @@ export interface Transaction {
   date: string
   type: TransactionType
   paymentMethod: PaymentMethod
-  person: Person
+  person: string
   category: string
   description: string
   value: number
@@ -23,7 +29,7 @@ export interface Transaction {
   parentPurchase?: number
 }
 
-export type TransactionPayload = Omit<Transaction, 'id'>
+export type TransactionPayload = Omit<Transaction, 'id' | 'person'> & { personId: number }
 
 export type BudgetType = 'VALUE' | 'PERCENTAGE'
 
@@ -31,29 +37,29 @@ export interface Budget {
   id: number
   competency: string
   category: string
-  person: Person
+  person: string
   budgetType: BudgetType
   amount: number
   percentage?: number
 }
 
-export type BudgetPayload = Omit<Budget, 'id'>
+export type BudgetPayload = Omit<Budget, 'id' | 'person'> & { personId: number }
 
 export interface CreditCard {
   id: number
   name: string
-  owner: Person
+  owner: string
   closingDay: string | number
   dueDay: string | number
   limit: number
 }
 
-export type CreditCardPayload = Omit<CreditCard, 'id'>
+export type CreditCardPayload = Omit<CreditCard, 'id' | 'owner'> & { ownerId: number }
 
 export interface CreditCardInvoiceStatus {
   creditCardId: number
   creditCardName: string
-  owner: Person
+  owner: string
   referenceMonth: string
   paid: boolean
   paidAt?: string | number[] | null
@@ -68,7 +74,8 @@ export interface SavingsDeposit {
   id: number
   amount: number
   date: string
-  person?: Person
+  person?: string
+  observacao?: string
 }
 
 export interface SavingsGoal {
@@ -77,23 +84,24 @@ export interface SavingsGoal {
   targetAmount: number
   currentAmount: number
   deadline?: string
-  owner: Person
+  owner: string
   description?: string
   deposits: SavingsDeposit[]
   createdAt: string
 }
 
-export type SavingsGoalPayload = Omit<SavingsGoal, 'id' | 'currentAmount' | 'deposits' | 'createdAt'>
+export type SavingsGoalPayload = Omit<SavingsGoal, 'id' | 'currentAmount' | 'deposits' | 'createdAt' | 'owner'> & { ownerId: number }
 
 export interface DepositPayload {
   goalId: number
   amount: number
   date: string
-  person: Person
+  personId: number
+  observacao?: string
 }
 
 export interface FinanceFilters {
-  person: Person | 'Todos'
+  person: string | 'Todos'
   category: string | 'Todas'
   paymentType: PaymentMethod | 'Todos'
   creditCard: string | 'Todos'
@@ -113,7 +121,7 @@ export interface RecurringTransaction {
   description: string
   type: TransactionType
   paymentMethod: PaymentMethod
-  person: Person
+  person: string
   category: string
   value: number
   startDate: string
@@ -125,7 +133,7 @@ export interface RecurringTransaction {
   baseCompetency?: string
 }
 
-export type RecurringTransactionPayload = Omit<RecurringTransaction, 'id' | 'creditCardName'>
+export type RecurringTransactionPayload = Omit<RecurringTransaction, 'id' | 'creditCardName' | 'person'> & { personId: number }
 
 export type InvestmentType = 
   | 'TESOURO_DIRETO'
@@ -142,7 +150,7 @@ export interface Investment {
   id: number
   name: string
   type: InvestmentType
-  owner: Person
+  owner: string
   investedAmount: number
   investmentDate: string
   annualRate?: number
@@ -153,7 +161,7 @@ export interface Investment {
   updatedAt: string
 }
 
-export type InvestmentPayload = Omit<Investment, 'id' | 'createdAt' | 'updatedAt'>
+export type InvestmentPayload = Omit<Investment, 'id' | 'createdAt' | 'updatedAt' | 'owner'> & { ownerId: number }
 
 export interface FinanceState {
   transactions: Transaction[]
@@ -164,6 +172,7 @@ export interface FinanceState {
   savingsGoals: SavingsGoal[]
   recurringTransactions: RecurringTransaction[]
   investments: Investment[]
+  persons: Person[]
 }
 
 

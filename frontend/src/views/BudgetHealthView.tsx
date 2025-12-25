@@ -12,7 +12,8 @@ import {
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
 import { useTheme } from '../context/ThemeContext'
-import type { BudgetPayload, BudgetType, Person, Transaction } from '../types/finance'
+import type { BudgetPayload, BudgetType, Transaction } from '../types/finance'
+import { getPersonIdByName } from '../utils/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
 
 interface BudgetHealthViewProps {
@@ -21,10 +22,11 @@ interface BudgetHealthViewProps {
   transactions: Transaction[]
 }
 
-const defaultForm = (competency: string): Omit<BudgetPayload, 'amount' | 'budgetType' | 'percentage'> & { 
+const defaultForm = (competency: string): Omit<BudgetPayload, 'amount' | 'budgetType' | 'percentage' | 'personId'> & { 
   amount: string
   budgetType: BudgetType
   percentage: string
+  person: string
 } => ({
   competency,
   category: 'Alimentação',
@@ -36,7 +38,7 @@ const defaultForm = (competency: string): Omit<BudgetPayload, 'amount' | 'budget
 
 export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMonth, onMonthChange, transactions }) => {
   const {
-    state: { budgets, categories },
+    state: { budgets, categories, persons },
     actions,
   } = useFinance()
   const { theme } = useTheme()
@@ -171,10 +173,13 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
     if (form.budgetType === 'VALUE' && !form.amount) return
     if (form.budgetType === 'PERCENTAGE' && !form.percentage) return
     
+    const personId = getPersonIdByName(persons, form.person)
+    if (!personId) return
+    
     await actions.addBudget({
       competency: form.competency,
       category: form.category,
-      person: form.person,
+      personId,
       budgetType: form.budgetType,
       amount: form.budgetType === 'VALUE' ? Number(form.amount) : (calculatedAmount || 0),
       percentage: form.budgetType === 'PERCENTAGE' ? Number(form.percentage) : undefined,
@@ -382,12 +387,12 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
             Pessoa
             <select
               value={form.person}
-              onChange={(event) => setForm({ ...form, person: event.target.value as Person })}
+              onChange={(event) => setForm({ ...form, person: event.target.value })}
               className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
             >
-              <option value="Kaio">Kaio</option>
-              <option value="Gabriela">Gabriela</option>
-              <option value="Ambos">Ambos</option>
+              {persons.filter(p => p.active).map((person) => (
+                <option key={person.id} value={person.name}>{person.name}</option>
+              ))}
             </select>
           </label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">

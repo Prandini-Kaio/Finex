@@ -9,4 +9,14 @@ databaseChangeLog:
       file: classpath:db/changelog/db.changelog-004-create-investments.yaml
   - include:
       file: classpath:db/changelog/db.changelog-006-create-credit-card-invoices.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-007-create-persons.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-008-add-allow-split-to-persons.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-009-migrate-existing-data.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-010-create-person-split-relationship.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-011-add-observacao-to-deposits.yaml
 

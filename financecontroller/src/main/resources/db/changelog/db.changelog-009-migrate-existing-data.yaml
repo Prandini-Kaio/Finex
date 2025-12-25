@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: ensure-persons-data-consistency
+      author: system
+      changes:
+        - sql:
+            sql: |
+              UPDATE persons 
+              SET active = COALESCE(active, true)
+              WHERE active IS NULL
+            comment: Garantir que todas as pessoas existentes tenham active definido como true se for NULL
+        - sql:
+            sql: |
+              UPDATE persons 
+              SET allow_split = COALESCE(allow_split, false)
+              WHERE allow_split IS NULL
+            comment: Garantir que todas as pessoas existentes tenham allow_split definido como false se for NULL (backup/segurança)

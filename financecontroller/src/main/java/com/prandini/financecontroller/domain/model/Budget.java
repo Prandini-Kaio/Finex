@@ -1,7 +1,6 @@
 package com.prandini.financecontroller.domain.model;
 
 import com.prandini.financecontroller.domain.model.enums.BudgetType;
-import com.prandini.financecontroller.domain.model.enums.Person;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -23,7 +22,8 @@ public class Budget {
     private String competency;
     private String category;
 
-    @Enumerated(EnumType.STRING)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "person_id", nullable = false)
     private Person person;
 
     @Enumerated(EnumType.STRING)

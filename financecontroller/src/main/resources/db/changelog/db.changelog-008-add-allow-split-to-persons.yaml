@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-allow-split-to-persons-column
+      author: system
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: persons
+                columnName: allow_split
+      changes:
+        - addColumn:
+            tableName: persons
+            columns:
+              - column:
+                  name: allow_split
+                  type: BOOLEAN
+                  defaultValue: false
+        - sql:
+            sql: UPDATE persons SET allow_split = false WHERE allow_split IS NULL
+            comment: Atualizar registros existentes para ter allow_split = false
+        - addNotNullConstraint:
+            tableName: persons
+            columnName: allow_split
+            columnDataType: BOOLEAN

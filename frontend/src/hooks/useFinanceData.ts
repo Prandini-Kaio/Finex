@@ -9,6 +9,7 @@ import type {
   FinanceState,
   Investment,
   InvestmentPayload,
+  Person,
   RecurringTransaction,
   RecurringTransactionPayload,
   SavingsGoal,
@@ -26,6 +27,7 @@ const initialState: FinanceState = {
   savingsGoals: [],
   recurringTransactions: [],
   investments: [],
+  persons: [],
 }
 
 interface FinanceActions {
@@ -52,6 +54,9 @@ interface FinanceActions {
   addInvestment: (payload: InvestmentPayload) => Promise<Investment>
   updateInvestment: (id: number, payload: InvestmentPayload) => Promise<Investment>
   deleteInvestment: (id: number) => Promise<void>
+  createPerson: (payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }) => Promise<Person>
+  updatePerson: (id: number, payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }) => Promise<Person>
+  deletePerson: (id: number, payload: { migrateToPersonId?: number; deleteTransactions: boolean }) => Promise<void>
 }
 
 export function useFinanceData() {
@@ -62,7 +67,7 @@ export function useFinanceData() {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [transactions, budgets, categories, closedMonths, creditCards, savingsGoals, recurringTransactions, investments] = await Promise.all([
+      const [transactions, budgets, categories, closedMonths, creditCards, savingsGoals, recurringTransactions, investments, persons] = await Promise.all([
         financeService.getTransactions(),
         financeService.getBudgets(),
         financeService.getCategories(),
@@ -71,9 +76,9 @@ export function useFinanceData() {
         financeService.getSavingsGoals(),
         financeService.getRecurringTransactions(),
         financeService.getInvestments(),
+        financeService.getPersons(),
       ])
 
-      // Mapear creditCardId para creditCard para compatibilidade
       const mappedTransactions = transactions.map((tx) => ({
         ...tx,
         creditCard: tx.creditCardId ? String(tx.creditCardId) : tx.creditCard,
@@ -88,6 +93,7 @@ export function useFinanceData() {
         savingsGoals,
         recurringTransactions,
         investments,
+        persons,
       })
       setError(null)
     } catch (err) {
@@ -236,6 +242,23 @@ export function useFinanceData() {
     await refresh()
   }, [refresh])
 
+  const createPerson = useCallback(async (payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }) => {
+    const created = await financeService.createPerson(payload)
+    await refresh()
+    return created
+  }, [refresh])
+
+  const updatePerson = useCallback(async (id: number, payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }) => {
+    const updated = await financeService.updatePerson(id, payload)
+    await refresh()
+    return updated
+  }, [refresh])
+
+  const deletePerson = useCallback(async (id: number, payload: { migrateToPersonId?: number; deleteTransactions: boolean }) => {
+    await financeService.deletePerson(id, payload)
+    await refresh()
+  }, [refresh])
+
   const actions: FinanceActions = useMemo(
     () => ({
       refresh,
@@ -261,6 +284,9 @@ export function useFinanceData() {
       addInvestment,
       updateInvestment,
       deleteInvestment,
+      createPerson,
+      updatePerson,
+      deletePerson,
     }),
     [
       refresh,
@@ -286,6 +312,9 @@ export function useFinanceData() {
       addInvestment,
       updateInvestment,
       deleteInvestment,
+      createPerson,
+      updatePerson,
+      deletePerson,
     ],
   )
 

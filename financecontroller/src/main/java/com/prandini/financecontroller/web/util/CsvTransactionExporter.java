@@ -36,8 +36,8 @@ public class CsvTransactionExporter {
         // Método de Pagamento (usa getLabel() para retornar "Crédito", "Débito", etc.)
         line.append(transaction.getPaymentMethod().getLabel()).append(",");
 
-        // Pessoa (usa getLabel() para retornar "Kaio", "Gabriela", "Ambos")
-        line.append(transaction.getPerson().getLabel()).append(",");
+        // Pessoa (usa getName() para retornar o nome da pessoa)
+        line.append(escapeCsvField(transaction.getPerson().getName())).append(",");
 
         // Categoria
         line.append(escapeCsvField(transaction.getCategory())).append(",");

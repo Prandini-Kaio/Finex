@@ -1,0 +1,250 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-persons-table
+      author: system
+      changes:
+        - createTable:
+            tableName: persons
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_persons
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: active
+                  type: BOOLEAN
+                  constraints:
+                    nullable: false
+                    defaultValue: true
+        - insert:
+            tableName: persons
+            columns:
+              - column:
+                  name: name
+                  value: Kaio
+              - column:
+                  name: active
+                  value: true
+        - insert:
+            tableName: persons
+            columns:
+              - column:
+                  name: name
+                  value: Gabriela
+              - column:
+                  name: active
+                  value: true
+        - insert:
+            tableName: persons
+            columns:
+              - column:
+                  name: name
+                  value: Ambos
+              - column:
+                  name: active
+                  value: true
+  - changeSet:
+      id: add-person-id-to-transactions
+      author: system
+      changes:
+        - addColumn:
+            tableName: transactions
+            columns:
+              - column:
+                  name: person_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: UPDATE transactions SET person_id = (SELECT id FROM persons WHERE name = transactions.person) WHERE person IS NOT NULL
+        - dropColumn:
+            tableName: transactions
+            columns:
+              - column:
+                  name: person
+        - addForeignKeyConstraint:
+            baseTableName: transactions
+            baseColumnNames: person_id
+            constraintName: fk_transactions_person
+            referencedTableName: persons
+            referencedColumnNames: id
+        - addNotNullConstraint:
+            tableName: transactions
+            columnName: person_id
+            columnDataType: BIGINT
+  - changeSet:
+      id: add-person-id-to-budgets
+      author: system
+      changes:
+        - addColumn:
+            tableName: budgets
+            columns:
+              - column:
+                  name: person_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: UPDATE budgets SET person_id = (SELECT id FROM persons WHERE name = budgets.person) WHERE person IS NOT NULL
+        - dropColumn:
+            tableName: budgets
+            columns:
+              - column:
+                  name: person
+        - addForeignKeyConstraint:
+            baseTableName: budgets
+            baseColumnNames: person_id
+            constraintName: fk_budgets_person
+            referencedTableName: persons
+            referencedColumnNames: id
+        - addNotNullConstraint:
+            tableName: budgets
+            columnName: person_id
+            columnDataType: BIGINT
+  - changeSet:
+      id: add-person-id-to-savings-deposits
+      author: system
+      changes:
+        - addColumn:
+            tableName: savings_deposits
+            columns:
+              - column:
+                  name: person_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: UPDATE savings_deposits SET person_id = (SELECT id FROM persons WHERE name = savings_deposits.person) WHERE person IS NOT NULL
+        - dropColumn:
+            tableName: savings_deposits
+            columns:
+              - column:
+                  name: person
+        - addForeignKeyConstraint:
+            baseTableName: savings_deposits
+            baseColumnNames: person_id
+            constraintName: fk_savings_deposits_person
+            referencedTableName: persons
+            referencedColumnNames: id
+  - changeSet:
+      id: add-person-id-to-recurring-transactions
+      author: system
+      changes:
+        - addColumn:
+            tableName: recurring_transactions
+            columns:
+              - column:
+                  name: person_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: UPDATE recurring_transactions SET person_id = (SELECT id FROM persons WHERE name = recurring_transactions.person) WHERE person IS NOT NULL
+        - dropColumn:
+            tableName: recurring_transactions
+            columns:
+              - column:
+                  name: person
+        - addForeignKeyConstraint:
+            baseTableName: recurring_transactions
+            baseColumnNames: person_id
+            constraintName: fk_recurring_transactions_person
+            referencedTableName: persons
+            referencedColumnNames: id
+        - addNotNullConstraint:
+            tableName: recurring_transactions
+            columnName: person_id
+            columnDataType: BIGINT
+  - changeSet:
+      id: add-person-id-to-credit-cards
+      author: system
+      changes:
+        - addColumn:
+            tableName: credit_cards
+            columns:
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: UPDATE credit_cards SET owner_id = (SELECT id FROM persons WHERE name = credit_cards.owner) WHERE owner IS NOT NULL
+        - dropColumn:
+            tableName: credit_cards
+            columns:
+              - column:
+                  name: owner
+        - addForeignKeyConstraint:
+            baseTableName: credit_cards
+            baseColumnNames: owner_id
+            constraintName: fk_credit_cards_owner
+            referencedTableName: persons
+            referencedColumnNames: id
+        - addNotNullConstraint:
+            tableName: credit_cards
+            columnName: owner_id
+            columnDataType: BIGINT
+  - changeSet:
+      id: add-person-id-to-savings-goals
+      author: system
+      changes:
+        - addColumn:
+            tableName: savings_goals
+            columns:
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: UPDATE savings_goals SET owner_id = (SELECT id FROM persons WHERE name = savings_goals.owner) WHERE owner IS NOT NULL
+        - dropColumn:
+            tableName: savings_goals
+            columns:
+              - column:
+                  name: owner
+        - addForeignKeyConstraint:
+            baseTableName: savings_goals
+            baseColumnNames: owner_id
+            constraintName: fk_savings_goals_owner
+            referencedTableName: persons
+            referencedColumnNames: id
+  - changeSet:
+      id: add-person-id-to-investments
+      author: system
+      changes:
+        - addColumn:
+            tableName: investments
+            columns:
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: UPDATE investments SET owner_id = (SELECT id FROM persons WHERE name = investments.owner) WHERE owner IS NOT NULL
+        - dropColumn:
+            tableName: investments
+            columns:
+              - column:
+                  name: owner
+        - addForeignKeyConstraint:
+            baseTableName: investments
+            baseColumnNames: owner_id
+            constraintName: fk_investments_owner
+            referencedTableName: persons
+            referencedColumnNames: id
+        - addNotNullConstraint:
+            tableName: investments
+            columnName: owner_id
+            columnDataType: BIGINT
+

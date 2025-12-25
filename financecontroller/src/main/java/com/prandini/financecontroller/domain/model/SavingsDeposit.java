@@ -1,6 +1,5 @@
 package com.prandini.financecontroller.domain.model;
 
-import com.prandini.financecontroller.domain.model.enums.Person;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,11 +23,15 @@ public class SavingsDeposit {
 
     private LocalDate date;
 
-    @Enumerated(EnumType.STRING)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "person_id")
     private Person person;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "goal_id")
     private SavingsGoal goal;
+
+    @Column(length = 500)
+    private String observacao;
 }
 

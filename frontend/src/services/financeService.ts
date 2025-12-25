@@ -8,8 +8,10 @@ import type {
   DepositPayload,
   Investment,
   InvestmentPayload,
+  Person,
   RecurringTransaction,
   RecurringTransactionPayload,
+  SavingsDeposit,
   SavingsGoal,
   SavingsGoalPayload,
   Transaction,
@@ -125,6 +127,9 @@ export const financeService = {
       method: 'POST',
       body: payload,
     })
+  },
+  getAllDeposits(): Promise<SavingsDeposit[]> {
+    return httpClient<SavingsDeposit[]>('/api/savings-goals/deposits')
   },
   async importTransactions(file: File): Promise<{ totalProcessed: number; successCount: number; errorCount: number; errors: string[] }> {
     console.log('financeService.importTransactions - Iniciando upload do arquivo:', file.name)
@@ -272,6 +277,28 @@ export const financeService = {
   deleteInvestment(id: number): Promise<void> {
     return httpClient<void>(`/api/investments/${id}`, {
       method: 'DELETE',
+    })
+  },
+
+  getPersons(): Promise<Person[]> {
+    return httpClient<Person[]>('/api/persons')
+  },
+  createPerson(payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }): Promise<Person> {
+    return httpClient<Person>('/api/persons', {
+      method: 'POST',
+      body: payload,
+    })
+  },
+  updatePerson(id: number, payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }): Promise<Person> {
+    return httpClient<Person>(`/api/persons/${id}`, {
+      method: 'PUT',
+      body: payload,
+    })
+  },
+  deletePerson(id: number, payload: { migrateToPersonId?: number; deleteTransactions: boolean }): Promise<void> {
+    return httpClient<void>(`/api/persons/${id}`, {
+      method: 'DELETE',
+      body: payload,
     })
   },
 }

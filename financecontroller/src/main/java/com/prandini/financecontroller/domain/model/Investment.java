@@ -1,7 +1,6 @@
 package com.prandini.financecontroller.domain.model;
 
 import com.prandini.financecontroller.domain.model.enums.InvestmentType;
-import com.prandini.financecontroller.domain.model.enums.Person;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -31,8 +30,8 @@ public class Investment {
     @Column(nullable = false)
     private InvestmentType type;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
     private Person owner;
 
     @Column(nullable = false, precision = 15, scale = 2)

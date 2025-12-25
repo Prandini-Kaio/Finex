@@ -1,6 +1,5 @@
 package com.prandini.financecontroller.domain.model;
 
-import com.prandini.financecontroller.domain.model.enums.Person;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -32,7 +31,8 @@ public class SavingsGoal {
 
     private LocalDate deadline;
 
-    @Enumerated(EnumType.STRING)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
     private Person owner;
 
     @Column(length = 500)

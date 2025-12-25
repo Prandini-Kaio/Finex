@@ -1,7 +1,6 @@
 package com.prandini.financecontroller.domain.model;
 
 import com.prandini.financecontroller.domain.model.enums.PaymentMethod;
-import com.prandini.financecontroller.domain.model.enums.Person;
 import com.prandini.financecontroller.domain.model.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -30,7 +29,8 @@ public class Transaction {
     @Enumerated(EnumType.STRING)
     private PaymentMethod paymentMethod;
 
-    @Enumerated(EnumType.STRING)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "person_id", nullable = false)
     private Person person;
 
     private String category;

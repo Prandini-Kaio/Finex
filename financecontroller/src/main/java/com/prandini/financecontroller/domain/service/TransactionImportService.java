@@ -1,11 +1,12 @@
 package com.prandini.financecontroller.domain.service;
 
 import com.prandini.financecontroller.domain.model.CreditCard;
+import com.prandini.financecontroller.domain.model.Person;
 import com.prandini.financecontroller.domain.model.Transaction;
 import com.prandini.financecontroller.domain.model.enums.PaymentMethod;
-import com.prandini.financecontroller.domain.model.enums.Person;
 import com.prandini.financecontroller.domain.model.enums.TransactionType;
 import com.prandini.financecontroller.domain.repository.CreditCardRepository;
+import com.prandini.financecontroller.domain.repository.PersonRepository;
 import com.prandini.financecontroller.domain.repository.TransactionRepository;
 import com.prandini.financecontroller.web.dto.ImportResponse;
 import com.prandini.financecontroller.web.dto.ImportTransactionRequest;
@@ -25,6 +26,7 @@ public class TransactionImportService {
     private final CsvTransactionParser csvParser;
     private final TransactionService transactionService;
     private final CreditCardRepository creditCardRepository;
+    private final PersonRepository personRepository;
 
     @Transactional
     public ImportResponse importFromCsv(String csvContent) {
@@ -52,18 +54,15 @@ public class TransactionImportService {
     }
 
     private TransactionRequest convertToTransactionRequest(ImportTransactionRequest importRequest) {
-        // Valida e converte enums
         TransactionType type = parseTransactionType(importRequest.type());
         PaymentMethod paymentMethod = parsePaymentMethod(importRequest.paymentMethod());
-        Person person = parsePerson(importRequest.person());
+        Long personId = parsePerson(importRequest.person());
 
-        // Busca cartão de crédito se fornecido
         Long creditCardId = null;
         if (importRequest.creditCardName() != null && !importRequest.creditCardName().isEmpty()) {
             creditCardId = findCreditCardByName(importRequest.creditCardName());
         }
 
-        // Processa parcelas
         Integer installments = importRequest.installments() != null && importRequest.installments() > 1
                 ? importRequest.installments() : 1;
         Integer installmentNumber = 1;
@@ -74,7 +73,7 @@ public class TransactionImportService {
                 importRequest.date(),
                 type,
                 paymentMethod,
-                person,
+                personId,
                 importRequest.category(),
                 importRequest.description(),
                 importRequest.value(),
@@ -115,18 +114,10 @@ public class TransactionImportService {
         }
     }
 
-    private Person parsePerson(String person) {
-        try {
-            // Tenta usar o método fromLabel primeiro
-            return Person.fromLabel(person.trim());
-        } catch (IllegalArgumentException e) {
-            // Se falhar, tenta usar valueOf
-            try {
-                return Person.valueOf(person.trim().toUpperCase());
-            } catch (IllegalArgumentException e2) {
-                throw new IllegalArgumentException("Pessoa inválida: " + person + ". Use 'Kaio', 'Gabriela' ou 'Ambos'");
-            }
-        }
+    private Long parsePerson(String person) {
+        Person foundPerson = personRepository.findByName(person.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Pessoa não encontrada: " + person + ". Verifique se a pessoa está cadastrada."));
+        return foundPerson.getId();
     }
 
     private Long findCreditCardByName(String cardName) {

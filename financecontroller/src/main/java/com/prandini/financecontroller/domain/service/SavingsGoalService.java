@@ -1,7 +1,10 @@
 package com.prandini.financecontroller.domain.service;
 
+import com.prandini.financecontroller.domain.model.Person;
 import com.prandini.financecontroller.domain.model.SavingsDeposit;
 import com.prandini.financecontroller.domain.model.SavingsGoal;
+import com.prandini.financecontroller.domain.repository.PersonRepository;
+import com.prandini.financecontroller.domain.repository.SavingsDepositRepository;
 import com.prandini.financecontroller.domain.repository.SavingsGoalRepository;
 import com.prandini.financecontroller.web.dto.DepositRequest;
 import com.prandini.financecontroller.web.dto.SavingsGoalRequest;
@@ -18,6 +21,8 @@ import java.util.List;
 public class SavingsGoalService {
 
     private final SavingsGoalRepository savingsGoalRepository;
+    private final PersonRepository personRepository;
+    private final SavingsDepositRepository savingsDepositRepository;
 
     public List<SavingsGoal> listAll() {
         return savingsGoalRepository.findAll();
@@ -25,12 +30,15 @@ public class SavingsGoalService {
 
     @Transactional
     public SavingsGoal create(SavingsGoalRequest request) {
+        Person owner = personRepository.findById(request.ownerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.ownerId()));
+        
         SavingsGoal goal = SavingsGoal.builder()
                 .name(request.name())
                 .targetAmount(request.targetAmount())
                 .currentAmount(BigDecimal.ZERO)
                 .deadline(request.deadline())
-                .owner(request.owner())
+                .owner(owner)
                 .description(request.description())
                 .build();
         return savingsGoalRepository.save(goal);
@@ -48,13 +56,25 @@ public class SavingsGoalService {
     public SavingsGoal addDeposit(Long goalId, DepositRequest request) {
         SavingsGoal goal = savingsGoalRepository.findById(goalId)
                 .orElseThrow(() -> new ResourceNotFoundException("Objetivo não encontrado: " + goalId));
+        
+        Person person = null;
+        if (request.personId() != null) {
+            person = personRepository.findById(request.personId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.personId()));
+        }
+        
         SavingsDeposit deposit = SavingsDeposit.builder()
                 .amount(request.amount())
                 .date(request.date())
-                .person(request.person())
+                .person(person)
+                .observacao(request.observacao())
                 .build();
         goal.addDeposit(deposit);
         return savingsGoalRepository.save(goal);
+    }
+
+    public List<SavingsDeposit> listAllDeposits() {
+        return savingsDepositRepository.findAllOrderByDateDesc();
     }
 }
 
