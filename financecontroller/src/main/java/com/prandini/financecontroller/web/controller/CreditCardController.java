@@ -30,6 +30,11 @@ public class CreditCardController {
         return FinanceMapper.toResponse(creditCardService.create(request));
     }
 
+    @PutMapping("/{id}")
+    public CreditCardResponse updateCard(@PathVariable Long id, @RequestBody CreditCardRequest request) {
+        return FinanceMapper.toResponse(creditCardService.update(id, request));
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCard(@PathVariable Long id) {

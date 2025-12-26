@@ -40,6 +40,23 @@ public class CreditCardService {
     }
 
     @Transactional
+    public CreditCard update(Long id, CreditCardRequest request) {
+        CreditCard card = creditCardRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado: " + id));
+        
+        Person owner = personRepository.findById(request.ownerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.ownerId()));
+        
+        card.setName(request.name());
+        card.setOwner(owner);
+        card.setClosingDay(request.closingDay());
+        card.setDueDay(request.dueDay());
+        card.setLimit(request.limit());
+        
+        return creditCardRepository.save(card);
+    }
+
+    @Transactional
     public void delete(Long id) {
         if (!creditCardRepository.existsById(id)) {
             throw new ResourceNotFoundException("Cartão não encontrado: " + id);

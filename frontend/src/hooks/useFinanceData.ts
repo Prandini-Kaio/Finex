@@ -35,12 +35,16 @@ interface FinanceActions {
   addTransactions: (payloads: TransactionPayload[]) => Promise<Transaction[]>
   updateTransaction: (id: number, payload: TransactionPayload) => Promise<Transaction>
   deleteTransaction: (id: number) => Promise<void>
+  getInstallments: (parentPurchaseId: number) => Promise<Transaction[]>
+  deleteAllInstallments: (parentPurchaseId: number) => Promise<void>
+  updateInstallments: (parentPurchaseId: number, payload: { newTotalValue?: number; newPurchaseDate?: string }) => Promise<Transaction[]>
   addBudget: (payload: BudgetPayload) => Promise<Budget>
   deleteBudget: (id: number) => Promise<void>
   saveCategories: (categories: string[]) => Promise<void>
   closeMonth: (month: string) => Promise<void>
   reopenMonth: (month: string) => Promise<void>
   addCreditCard: (payload: CreditCardPayload) => Promise<CreditCard>
+  updateCreditCard: (id: number, payload: CreditCardPayload) => Promise<CreditCard>
   deleteCreditCard: (id: number) => Promise<void>
   addSavingsGoal: (payload: SavingsGoalPayload) => Promise<SavingsGoal>
   updateSavingsGoal: (id: number, payload: SavingsGoalPayload) => Promise<SavingsGoal>
@@ -134,6 +138,21 @@ export function useFinanceData() {
     await refresh()
   }, [refresh])
 
+  const getInstallments = useCallback(async (parentPurchaseId: number) => {
+    return financeService.getInstallments(parentPurchaseId)
+  }, [])
+
+  const deleteAllInstallments = useCallback(async (parentPurchaseId: number) => {
+    await financeService.deleteAllInstallments(parentPurchaseId)
+    await refresh()
+  }, [refresh])
+
+  const updateInstallments = useCallback(async (parentPurchaseId: number, payload: { newTotalValue?: number; newPurchaseDate?: string }) => {
+    const updated = await financeService.updateInstallments(parentPurchaseId, payload)
+    await refresh()
+    return updated
+  }, [refresh])
+
   const addBudget = useCallback(async (payload: BudgetPayload) => {
     const created = await financeService.createBudget(payload)
     await refresh()
@@ -164,6 +183,12 @@ export function useFinanceData() {
     const created = await financeService.createCreditCard(payload)
     await refresh()
     return created
+  }, [refresh])
+
+  const updateCreditCard = useCallback(async (id: number, payload: CreditCardPayload) => {
+    const updated = await financeService.updateCreditCard(id, payload)
+    await refresh()
+    return updated
   }, [refresh])
 
   const deleteCreditCard = useCallback(async (id: number) => {
@@ -279,12 +304,16 @@ export function useFinanceData() {
       addTransactions,
       updateTransaction,
       deleteTransaction,
+      getInstallments,
+      deleteAllInstallments,
+      updateInstallments,
       addBudget,
       deleteBudget,
       saveCategories,
       closeMonth,
       reopenMonth,
       addCreditCard,
+      updateCreditCard,
       deleteCreditCard,
       addSavingsGoal,
       updateSavingsGoal,
@@ -309,12 +338,16 @@ export function useFinanceData() {
       addTransactions,
       updateTransaction,
       deleteTransaction,
+      getInstallments,
+      deleteAllInstallments,
+      updateInstallments,
       addBudget,
       deleteBudget,
       saveCategories,
       closeMonth,
       reopenMonth,
       addCreditCard,
+      updateCreditCard,
       deleteCreditCard,
       addSavingsGoal,
       updateSavingsGoal,

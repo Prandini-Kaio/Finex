@@ -7,13 +7,17 @@ import com.prandini.financecontroller.domain.repository.CreditCardRepository;
 import com.prandini.financecontroller.domain.repository.PersonRepository;
 import com.prandini.financecontroller.domain.repository.TransactionRepository;
 import com.prandini.financecontroller.web.dto.TransactionRequest;
+import com.prandini.financecontroller.web.dto.UpdateInstallmentsRequest;
 import com.prandini.financecontroller.web.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -107,6 +111,55 @@ public class TransactionService {
             endDate = LocalDate.of(9999, 12, 31);
         }
         return transactionRepository.findByDateBetween(startDate, endDate);
+    }
+
+    public List<Transaction> getInstallmentsByParentPurchaseId(Long parentPurchaseId) {
+        return transactionRepository.findByParentPurchaseId(parentPurchaseId);
+    }
+
+    @Transactional
+    public void deleteAllInstallments(Long parentPurchaseId) {
+        if (parentPurchaseId == null) {
+            throw new IllegalArgumentException("parentPurchaseId não pode ser nulo");
+        }
+        transactionRepository.deleteByParentPurchaseId(parentPurchaseId);
+    }
+
+    @Transactional
+    public List<Transaction> updateInstallments(Long parentPurchaseId, UpdateInstallmentsRequest request) {
+        List<Transaction> installments = transactionRepository.findByParentPurchaseId(parentPurchaseId);
+        if (installments.isEmpty()) {
+            throw new ResourceNotFoundException("Nenhuma parcela encontrada para parentPurchaseId: " + parentPurchaseId);
+        }
+
+        Transaction firstInstallment = installments.get(0);
+        int totalInstallments = installments.size();
+        
+        BigDecimal newTotalValue = request.newTotalValue() != null 
+            ? request.newTotalValue() 
+            : installments.stream()
+                .map(Transaction::getValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        LocalDate newPurchaseDate = request.newPurchaseDate() != null 
+            ? request.newPurchaseDate() 
+            : firstInstallment.getDate();
+
+        BigDecimal installmentValue = newTotalValue.divide(BigDecimal.valueOf(totalInstallments), 2, RoundingMode.HALF_UP);
+
+        for (int i = 0; i < installments.size(); i++) {
+            Transaction installment = installments.get(i);
+            LocalDate installmentDate = newPurchaseDate.plusMonths(i);
+            String competency = String.format("%02d/%d", installmentDate.getMonthValue(), installmentDate.getYear());
+            
+            installment.setValue(installmentValue);
+            installment.setDate(installmentDate);
+            installment.setCompetency(competency);
+            
+            transactionRepository.save(installment);
+        }
+
+        return transactionRepository.findByParentPurchaseId(parentPurchaseId);
     }
 }
 

@@ -55,6 +55,7 @@ databaseChangeLog:
   - changeSet:
       id: add-person-id-to-transactions
       author: system
+      validCheckSum: 9:56ae60999dd6856cef97ea7983df3d11
       changes:
         - addColumn:
             tableName: transactions
@@ -86,6 +87,7 @@ databaseChangeLog:
   - changeSet:
       id: add-person-id-to-budgets
       author: system
+      validCheckSum: 9:86693f3d287d31d3226d25de10ea85ad
       changes:
         - addColumn:
             tableName: budgets
@@ -142,6 +144,7 @@ databaseChangeLog:
   - changeSet:
       id: add-person-id-to-recurring-transactions
       author: system
+      validCheckSum: 9:c8a320c6cf12736708377b40c44318c8
       changes:
         - addColumn:
             tableName: recurring_transactions
@@ -173,6 +176,7 @@ databaseChangeLog:
   - changeSet:
       id: add-person-id-to-credit-cards
       author: system
+      validCheckSum: 9:1b6c57d260f3d6d883670c78f5933c9f
       changes:
         - addColumn:
             tableName: credit_cards
@@ -204,6 +208,7 @@ databaseChangeLog:
   - changeSet:
       id: add-person-id-to-savings-goals
       author: system
+      validCheckSum: 9:d8b561acf9fffe2122f38f4c4ed7c28e
       changes:
         - addColumn:
             tableName: savings_goals
@@ -231,6 +236,7 @@ databaseChangeLog:
   - changeSet:
       id: add-person-id-to-investments
       author: system
+      validCheckSum: 9:41b409bea0a6273dfd5b6c587a6c88d2
       changes:
         - addColumn:
             tableName: investments

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Plus, Trash2, Upload, Download, FileDown, Edit } from 'lucide-react'
+import { Plus, Trash2, Upload, Download, FileDown, Edit, Package } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -82,6 +82,11 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     errorCount: number
     errors: string[]
   } | null>(null)
+  const [showInstallmentsModal, setShowInstallmentsModal] = useState(false)
+  const [editingInstallmentsParentId, setEditingInstallmentsParentId] = useState<number | null>(null)
+  const [installmentsList, setInstallmentsList] = useState<Transaction[]>([])
+  const [editInstallmentsTotalValue, setEditInstallmentsTotalValue] = useState('')
+  const [editInstallmentsPurchaseDate, setEditInstallmentsPurchaseDate] = useState('')
 
   const isMonthClosed = closedMonths.includes(selectedMonth)
 
@@ -595,6 +600,25 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   <td className="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-gray-100">R$ {transaction.value.toFixed(2)}</td>
                   <td className="px-4 py-3 text-sm">
                     <div className="flex items-center gap-2">
+                      {transaction.parentPurchase && transaction.installmentNumber === 1 && (
+                        <button
+                          onClick={async () => {
+                            if (!transaction.parentPurchase) return
+                            const installments = await actions.getInstallments(transaction.parentPurchase)
+                            setInstallmentsList(installments)
+                            const totalValue = installments.reduce((sum, t) => sum + t.value, 0)
+                            setEditInstallmentsTotalValue(totalValue.toFixed(2))
+                            setEditInstallmentsPurchaseDate(transaction.date)
+                            setEditingInstallmentsParentId(transaction.parentPurchase)
+                            setShowInstallmentsModal(true)
+                          }}
+                          disabled={isMonthClosed}
+                          className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 disabled:cursor-not-allowed disabled:opacity-50"
+                          title="Editar compra parcelada"
+                        >
+                          <Package size={16} />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleEdit(transaction)}
                         disabled={isMonthClosed}
@@ -1063,6 +1087,130 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
                 >
                   <FileDown size={16} /> Exportar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInstallmentsModal && editingInstallmentsParentId && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowInstallmentsModal(false)
+              setEditingInstallmentsParentId(null)
+            }
+          }}
+        >
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4 border border-gray-200 dark:border-slate-700">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <Package size={20} />
+              Editar Compra Parcelada
+            </h2>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Valor Total Original (R$)
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editInstallmentsTotalValue}
+                    onChange={(e) => setEditInstallmentsTotalValue(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Data da Compra
+                  <input
+                    type="date"
+                    value={editInstallmentsPurchaseDate}
+                    onChange={(e) => setEditInstallmentsPurchaseDate(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                  />
+                </label>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Parcelas ({installmentsList.length}x)
+                </h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {installmentsList
+                    .sort((a, b) => a.installmentNumber - b.installmentNumber)
+                    .map((installment) => {
+                      const newValue = editInstallmentsTotalValue 
+                        ? (Number(editInstallmentsTotalValue) / installmentsList.length).toFixed(2)
+                        : installment.value.toFixed(2)
+                      const purchaseDate = editInstallmentsPurchaseDate ? new Date(editInstallmentsPurchaseDate) : new Date(installment.date)
+                      const installmentDate = new Date(purchaseDate)
+                      installmentDate.setMonth(purchaseDate.getMonth() + (installment.installmentNumber - 1))
+                      const competencyDate = new Date(installmentDate)
+                      const newCompetency = `${String(competencyDate.getMonth() + 1).padStart(2, '0')}/${competencyDate.getFullYear()}`
+                      
+                      return (
+                        <div
+                          key={installment.id}
+                          className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-600 text-sm"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                              {installment.installmentNumber}/{installmentsList.length}
+                            </span>
+                            <span className="text-gray-600 dark:text-gray-400">
+                              {installmentDate.toLocaleDateString('pt-BR')}
+                            </span>
+                            <span className="text-gray-500 dark:text-gray-500 text-xs">
+                              {newCompetency}
+                            </span>
+                          </div>
+                          <span className="font-semibold text-gray-800 dark:text-gray-200">
+                            R$ {newValue}
+                          </span>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={async () => {
+                    if (confirm('Tem certeza que deseja deletar todas as parcelas desta compra?')) {
+                      await actions.deleteAllInstallments(editingInstallmentsParentId)
+                      setShowInstallmentsModal(false)
+                      setEditingInstallmentsParentId(null)
+                    }
+                  }}
+                  disabled={isMonthClosed}
+                  className="flex-1 px-4 py-2 bg-red-500 dark:bg-red-600 text-white rounded-lg font-semibold hover:bg-red-600 dark:hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Deletar Todas as Parcelas
+                </button>
+                <button
+                  onClick={() => {
+                    setShowInstallmentsModal(false)
+                    setEditingInstallmentsParentId(null)
+                  }}
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    await actions.updateInstallments(editingInstallmentsParentId, {
+                      newTotalValue: editInstallmentsTotalValue ? Number(editInstallmentsTotalValue) : undefined,
+                      newPurchaseDate: editInstallmentsPurchaseDate || undefined,
+                    })
+                    setShowInstallmentsModal(false)
+                    setEditingInstallmentsParentId(null)
+                  }}
+                  disabled={isMonthClosed}
+                  className="px-4 py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-600 dark:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Salvar Alterações
                 </button>
               </div>
             </div>

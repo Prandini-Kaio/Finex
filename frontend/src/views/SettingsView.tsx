@@ -32,6 +32,8 @@ export const SettingsView: React.FC = () => {
   const [deletingPersonId, setDeletingPersonId] = useState<number | null>(null)
   const [deleteOption, setDeleteOption] = useState<'migrate' | 'delete'>('migrate')
   const [migrateToPersonId, setMigrateToPersonId] = useState<number | null>(null)
+  const [editingCardId, setEditingCardId] = useState<number | null>(null)
+  const [editCardForm, setEditCardForm] = useState(() => getCardDefaults(persons[0]?.id))
 
   const handleAddCategory = async () => {
     if (!newCategory || categories.includes(newCategory)) return
@@ -53,6 +55,34 @@ export const SettingsView: React.FC = () => {
       limit: Number(cardForm.limit),
     })
     setCardForm(getCardDefaults(persons[0]?.id))
+  }
+
+  const handleStartEditCard = (card: typeof creditCards[0]) => {
+    setEditingCardId(card.id)
+    setEditCardForm({
+      name: card.name,
+      ownerId: persons.find(p => p.name === card.owner)?.id || persons[0]?.id || 0,
+      closingDay: String(card.closingDay),
+      dueDay: String(card.dueDay),
+      limit: card.limit.toString(),
+    })
+  }
+
+  const handleCancelEditCard = () => {
+    setEditingCardId(null)
+    setEditCardForm(getCardDefaults(persons[0]?.id))
+  }
+
+  const handleSaveEditCard = async () => {
+    if (!editingCardId || !editCardForm.name || !editCardForm.limit || !editCardForm.ownerId) return
+    await actions.updateCreditCard(editingCardId, {
+      name: editCardForm.name,
+      ownerId: editCardForm.ownerId,
+      closingDay: editCardForm.closingDay,
+      dueDay: editCardForm.dueDay,
+      limit: Number(editCardForm.limit),
+    })
+    handleCancelEditCard()
   }
 
   const handleAddPerson = async () => {
@@ -439,21 +469,107 @@ export const SettingsView: React.FC = () => {
         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Cartões de crédito</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {creditCards.map((card) => (
-            <div key={card.id} className="border border-gray-200 dark:border-slate-700 rounded-lg p-3 flex justify-between items-start bg-gray-50 dark:bg-slate-700/50">
-              <div>
-                <p className="font-semibold text-gray-800 dark:text-gray-100">{card.name}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{card.owner}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  Fechamento dia {card.closingDay} • Vencimento dia {card.dueDay}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Limite: R$ {card.limit.toFixed(2)}</p>
-              </div>
-              <button
-                onClick={() => actions.deleteCreditCard(card.id)}
-                className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-              >
-                <Trash2 size={16} />
-              </button>
+            <div key={card.id} className="border border-gray-200 dark:border-slate-700 rounded-lg p-3 bg-gray-50 dark:bg-slate-700/50">
+              {editingCardId === card.id ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      Nome
+                      <input
+                        type="text"
+                        value={editCardForm.name}
+                        onChange={(e) => setEditCardForm({ ...editCardForm, name: e.target.value })}
+                        className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                      />
+                    </label>
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      Titular
+                      <select
+                        value={editCardForm.ownerId}
+                        onChange={(e) => setEditCardForm({ ...editCardForm, ownerId: Number(e.target.value) })}
+                        className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                      >
+                        {persons.map((person) => (
+                          <option key={person.id} value={person.id}>{person.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      Fechamento
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={editCardForm.closingDay}
+                        onChange={(e) => setEditCardForm({ ...editCardForm, closingDay: e.target.value })}
+                        className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                      />
+                    </label>
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      Vencimento
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={editCardForm.dueDay}
+                        onChange={(e) => setEditCardForm({ ...editCardForm, dueDay: e.target.value })}
+                        className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                      />
+                    </label>
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300 col-span-2">
+                      Limite (R$)
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editCardForm.limit}
+                        onChange={(e) => setEditCardForm({ ...editCardForm, limit: e.target.value })}
+                        className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                      />
+                    </label>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveEditCard}
+                      className="flex-1 px-2 py-1 text-xs bg-blue-500 dark:bg-blue-600 text-white rounded hover:bg-blue-600 dark:hover:bg-blue-700"
+                    >
+                      Salvar
+                    </button>
+                    <button
+                      onClick={handleCancelEditCard}
+                      className="px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-gray-800 dark:text-gray-100">{card.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{card.owner}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      Fechamento dia {card.closingDay} • Vencimento dia {card.dueDay}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Limite: R$ {card.limit.toFixed(2)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleStartEditCard(card)}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      title="Editar cartão"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => actions.deleteCreditCard(card.id)}
+                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                      title="Excluir cartão"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -5,6 +5,7 @@ import com.prandini.financecontroller.domain.service.TransactionService;
 import com.prandini.financecontroller.web.dto.ImportResponse;
 import com.prandini.financecontroller.web.dto.TransactionRequest;
 import com.prandini.financecontroller.web.dto.TransactionResponse;
+import com.prandini.financecontroller.web.dto.UpdateInstallmentsRequest;
 import com.prandini.financecontroller.web.mapper.FinanceMapper;
 import com.prandini.financecontroller.web.util.CsvTransactionExporter;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +65,28 @@ public class TransactionController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTransaction(@PathVariable Long id) {
         transactionService.delete(id);
+    }
+
+    @GetMapping("/installments/{parentPurchaseId}")
+    public List<TransactionResponse> getInstallments(@PathVariable Long parentPurchaseId) {
+        return transactionService.getInstallmentsByParentPurchaseId(parentPurchaseId).stream()
+                .map(FinanceMapper::toResponse)
+                .toList();
+    }
+
+    @DeleteMapping("/installments/{parentPurchaseId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAllInstallments(@PathVariable Long parentPurchaseId) {
+        transactionService.deleteAllInstallments(parentPurchaseId);
+    }
+
+    @PutMapping("/installments/{parentPurchaseId}")
+    public List<TransactionResponse> updateInstallments(
+            @PathVariable Long parentPurchaseId,
+            @RequestBody UpdateInstallmentsRequest request) {
+        return transactionService.updateInstallments(parentPurchaseId, request).stream()
+                .map(FinanceMapper::toResponse)
+                .toList();
     }
 
     @GetMapping(value = "/export", produces = MediaType.TEXT_PLAIN_VALUE)

@@ -40,6 +40,20 @@ export const financeService = {
       method: 'DELETE',
     })
   },
+  getInstallments(parentPurchaseId: number): Promise<Transaction[]> {
+    return httpClient<Transaction[]>(`/api/transactions/installments/${parentPurchaseId}`)
+  },
+  deleteAllInstallments(parentPurchaseId: number): Promise<void> {
+    return httpClient<void>(`/api/transactions/installments/${parentPurchaseId}`, {
+      method: 'DELETE',
+    })
+  },
+  updateInstallments(parentPurchaseId: number, payload: { newTotalValue?: number; newPurchaseDate?: string }): Promise<Transaction[]> {
+    return httpClient<Transaction[]>(`/api/transactions/installments/${parentPurchaseId}`, {
+      method: 'PUT',
+      body: payload,
+    })
+  },
   getBudgets(): Promise<Budget[]> {
     return httpClient<Budget[]>('/api/budgets')
   },
@@ -100,6 +114,12 @@ export const financeService = {
   createCreditCard(payload: CreditCardPayload): Promise<CreditCard> {
     return httpClient<CreditCard>('/api/credit-cards', {
       method: 'POST',
+      body: payload,
+    })
+  },
+  updateCreditCard(id: number, payload: CreditCardPayload): Promise<CreditCard> {
+    return httpClient<CreditCard>(`/api/credit-cards/${id}`, {
+      method: 'PUT',
       body: payload,
     })
   },
