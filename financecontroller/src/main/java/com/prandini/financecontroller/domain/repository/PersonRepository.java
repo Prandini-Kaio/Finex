@@ -38,3 +38,6 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
     long countInvestmentsByPersonId(Long personId);
 }
 
+
+
+
