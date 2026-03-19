@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface PersonRepository extends JpaRepository<Person, Long> {
     Optional<Person> findByName(String name);
     
-    @EntityGraph(attributePaths = {"splitWithPersons"})
+    @EntityGraph(attributePaths = {"splits", "splits.splitWithPerson"})
     List<Person> findByActiveTrueOrderByName();
     
     @Query("SELECT COUNT(t) FROM Transaction t WHERE t.person.id = :personId")

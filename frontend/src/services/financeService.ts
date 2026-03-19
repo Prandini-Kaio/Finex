@@ -315,13 +315,13 @@ export const financeService = {
   getPersons(): Promise<Person[]> {
     return httpClient<Person[]>('/api/persons')
   },
-  createPerson(payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }): Promise<Person> {
+  createPerson(payload: { name: string; allowSplit?: boolean; splits?: Person['splits'] }): Promise<Person> {
     return httpClient<Person>('/api/persons', {
       method: 'POST',
       body: payload,
     })
   },
-  updatePerson(id: number, payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }): Promise<Person> {
+  updatePerson(id: number, payload: { name: string; allowSplit?: boolean; splits?: Person['splits'] }): Promise<Person> {
     return httpClient<Person>(`/api/persons/${id}`, {
       method: 'PUT',
       body: payload,

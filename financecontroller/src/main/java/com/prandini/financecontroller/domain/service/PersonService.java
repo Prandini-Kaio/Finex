@@ -4,6 +4,7 @@ import com.prandini.financecontroller.domain.model.Person;
 import com.prandini.financecontroller.domain.model.*;
 import com.prandini.financecontroller.domain.repository.*;
 import com.prandini.financecontroller.web.dto.DeletePersonRequest;
+import com.prandini.financecontroller.web.dto.PersonSplitRequest;
 import com.prandini.financecontroller.web.dto.PersonRequest;
 import com.prandini.financecontroller.web.exception.BadRequestException;
 import com.prandini.financecontroller.web.exception.ResourceNotFoundException;
@@ -12,6 +13,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -44,18 +47,14 @@ public class PersonService {
                 .allowSplit(request.allowSplit() != null ? request.allowSplit() : false)
                 .build();
         person = personRepository.save(person);
-        
-        if (request.splitWithPersonIds() != null && !request.splitWithPersonIds().isEmpty()) {
-            Set<Person> splitWithPersons = new HashSet<>();
-            for (Long splitWithId : request.splitWithPersonIds()) {
-                if (splitWithId.equals(person.getId())) {
-                    throw new BadRequestException("Uma pessoa não pode dividir contas consigo mesma");
-                }
-                Person splitWithPerson = personRepository.findById(splitWithId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada para divisão: " + splitWithId));
-                splitWithPersons.add(splitWithPerson);
+
+        if (Boolean.TRUE.equals(person.getAllowSplit())) {
+            if (request.splits() == null || request.splits().isEmpty()) {
+                throw new BadRequestException("É necessário informar splits com percentuais que somem 100%");
             }
-            person.setSplitWithPersons(splitWithPersons);
+            Set<PersonSplit> newSplits = buildSplits(person, request.splits());
+            person.getSplits().clear();
+            person.getSplits().addAll(newSplits);
             person = personRepository.save(person);
         }
         
@@ -75,21 +74,71 @@ public class PersonService {
         if (request.allowSplit() != null) {
             person.setAllowSplit(request.allowSplit());
         }
-        
-        if (request.splitWithPersonIds() != null) {
-            Set<Person> splitWithPersons = new HashSet<>();
-            for (Long splitWithId : request.splitWithPersonIds()) {
-                if (splitWithId.equals(person.getId())) {
-                    throw new BadRequestException("Uma pessoa não pode dividir contas consigo mesma");
-                }
-                Person splitWithPerson = personRepository.findById(splitWithId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada para divisão: " + splitWithId));
-                splitWithPersons.add(splitWithPerson);
+
+        if (request.splits() != null) {
+            if (!Boolean.TRUE.equals(person.getAllowSplit())) {
+                person.getSplits().clear();
+            } else {
+                Set<PersonSplit> newSplits = buildSplits(person, request.splits());
+                person.getSplits().clear();
+                person.getSplits().addAll(newSplits);
             }
-            person.setSplitWithPersons(splitWithPersons);
         }
         
         return personRepository.save(person);
+    }
+
+    private Set<PersonSplit> buildSplits(Person person, List<PersonSplitRequest> splitsRequest) {
+        if (splitsRequest == null || splitsRequest.isEmpty()) {
+            throw new BadRequestException("É necessário informar splits com percentuais que somem 100%");
+        }
+
+        Set<Long> recipients = new HashSet<>();
+        BigDecimal sum = BigDecimal.ZERO;
+        for (PersonSplitRequest splitRequest : splitsRequest) {
+            if (splitRequest == null || splitRequest.splitWithPersonId() == null) {
+                throw new BadRequestException("splitWithPersonId é obrigatório");
+            }
+            if (splitRequest.splitWithPersonId().equals(person.getId())) {
+                throw new BadRequestException("Uma pessoa não pode dividir contas consigo mesma");
+            }
+            if (!recipients.add(splitRequest.splitWithPersonId())) {
+                throw new BadRequestException("Não é permitido repetir pessoas nos splits");
+            }
+            if (splitRequest.percentage() == null) {
+                throw new BadRequestException("percentage é obrigatório");
+            }
+            if (splitRequest.percentage().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Percentuais inválidos: deve ser >= 0");
+            }
+            sum = sum.add(splitRequest.percentage().setScale(2, RoundingMode.HALF_UP));
+        }
+
+        BigDecimal target = BigDecimal.valueOf(100).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal tolerance = new BigDecimal("0.01").setScale(2, RoundingMode.HALF_UP);
+        if (sum.subtract(target).abs().compareTo(tolerance) > 0) {
+            throw new BadRequestException("A soma dos percentuais deve ser 100%");
+        }
+
+        Set<PersonSplit> splits = new HashSet<>();
+        for (PersonSplitRequest splitRequest : splitsRequest) {
+            Person splitWithPerson = personRepository.findById(splitRequest.splitWithPersonId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada para divisão: " + splitRequest.splitWithPersonId()));
+
+            PersonSplitId splitId = new PersonSplitId();
+            splitId.setPersonId(person.getId());
+            splitId.setSplitWithPersonId(splitWithPerson.getId());
+
+            PersonSplit personSplit = PersonSplit.builder()
+                    .id(splitId)
+                    .person(person)
+                    .splitWithPerson(splitWithPerson)
+                    .percentage(splitRequest.percentage().setScale(2, RoundingMode.HALF_UP))
+                    .build();
+
+            splits.add(personSplit);
+        }
+        return splits;
     }
 
     @Transactional

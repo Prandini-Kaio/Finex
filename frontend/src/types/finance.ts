@@ -3,7 +3,7 @@ export interface Person {
   name: string
   active: boolean
   allowSplit: boolean
-  splitWithPersonIds?: number[]
+  splits?: Array<{ splitWithPersonId: number; percentage: number }>
 }
 
 export type TransactionType = 'Despesa' | 'Receita'

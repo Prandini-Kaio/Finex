@@ -17,7 +17,7 @@ import {
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
 import type { Transaction } from '../types/finance'
-import { getSavingsProgress } from '../utils/finance'
+import { allocateValueByPercentages, getSavingsProgress } from '../utils/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
 
 interface DashboardViewProps {
@@ -29,7 +29,6 @@ interface DashboardViewProps {
 const PERSON_COLORS: Record<string, string> = {
   Kaio: '#3b82f6',
   Gabriela: '#ec4899',
-  Ambos: '#a855f7',
 }
 
 // Cores para categorias
@@ -83,13 +82,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     if (saved) {
       try {
         const savedNames = JSON.parse(saved) as string[]
-        const activePersonNames = persons.filter(p => p.active).map(p => p.name)
+        const activePersonNames = persons.filter(p => p.active && !p.allowSplit).map(p => p.name)
         return savedNames.filter(name => activePersonNames.includes(name))
       } catch {
-        return persons.filter(p => p.active).map(p => p.name)
+        return persons.filter(p => p.active && !p.allowSplit).map(p => p.name)
       }
     }
-    return persons.filter(p => p.active).map(p => p.name)
+    return persons.filter(p => p.active && !p.allowSplit).map(p => p.name)
   })
   const [showPersonSelector, setShowPersonSelector] = useState(false)
   const personSelectorRef = useRef<HTMLDivElement>(null)
@@ -115,7 +114,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
   }, [selectedPersons])
 
   useEffect(() => {
-    const activePersonNames = persons.filter(p => p.active).map(p => p.name)
+    const activePersonNames = persons.filter(p => p.active && !p.allowSplit).map(p => p.name)
     setSelectedPersons(prev => {
       const filtered = prev.filter(name => activePersonNames.includes(name))
       if (filtered.length === 0 && activePersonNames.length > 0) {
@@ -125,23 +124,58 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     })
   }, [persons])
 
-  const filteredTransactions = useMemo(() => {
+  const monthTransactions = useMemo(() => {
+    return transactions.filter((t) => t.competency === selectedMonth)
+  }, [transactions, selectedMonth])
+
+  const effectiveTransactions = useMemo(() => {
     if (selectedPersons.length === 0) return []
-    return transactions.filter((t) => selectedPersons.includes(t.person))
-  }, [transactions, selectedPersons])
+
+    const selectedNames = new Set(selectedPersons)
+    const byName = new Map(persons.map((p) => [p.name, p]))
+    const byId = new Map(persons.map((p) => [p.id, p]))
+
+    const result: Transaction[] = []
+
+    for (const transaction of monthTransactions) {
+      const txPerson = byName.get(transaction.person)
+      if (!txPerson) continue
+
+      if (txPerson.allowSplit) {
+        const allocations = allocateValueByPercentages(transaction.value, txPerson.splits || [])
+        for (const [recipientIdStr, share] of Object.entries(allocations)) {
+          if (!share) continue
+          const recipientId = Number(recipientIdStr)
+          const recipient = byId.get(recipientId)
+          if (!recipient) continue
+          if (!selectedNames.has(recipient.name)) continue
+          result.push({ ...transaction, person: recipient.name, value: share })
+        }
+      } else {
+        if (!selectedNames.has(txPerson.name)) continue
+        result.push({ ...transaction })
+      }
+    }
+
+    return result
+  }, [monthTransactions, selectedPersons, persons])
 
   const stats = useMemo(() => {
-    const expenses = filteredTransactions.filter((t) => t.type === 'Despesa').reduce((sum, t) => sum + t.value, 0)
-    const income = filteredTransactions.filter((t) => t.type === 'Receita').reduce((sum, t) => sum + t.value, 0)
+    const expenses = effectiveTransactions
+      .filter((t) => t.type === 'Despesa')
+      .reduce((sum, t) => sum + t.value, 0)
+    const income = effectiveTransactions
+      .filter((t) => t.type === 'Receita')
+      .reduce((sum, t) => sum + t.value, 0)
 
-    const byCategory = filteredTransactions
+    const byCategory = effectiveTransactions
       .filter((t) => t.type === 'Despesa')
       .reduce<Record<string, number>>((acc, transaction) => {
         acc[transaction.category] = (acc[transaction.category] ?? 0) + transaction.value
         return acc
       }, {})
 
-    const byPerson = filteredTransactions
+    const byPerson = effectiveTransactions
       .filter((t) => t.type === 'Despesa')
       .reduce<Record<string, number>>((acc, transaction) => {
         acc[transaction.person] = (acc[transaction.person] ?? 0) + transaction.value
@@ -155,7 +189,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       byCategory,
       byPerson,
     }
-  }, [filteredTransactions])
+  }, [effectiveTransactions])
 
   const categoryChart = useMemo(
     () =>
@@ -167,36 +201,94 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     [stats.byCategory],
   )
 
+  const personPalette = ['#3b82f6', '#ec4899', '#a855f7', '#10b981', '#f59e0b']
+
   const personChart = useMemo(
-    () => Object.entries(stats.byPerson).map(([name, value]) => ({ name, value, fill: PERSON_COLORS[name] })),
+    () =>
+      Object.entries(stats.byPerson).map(([name, value], index) => ({
+        name,
+        value,
+        fill: PERSON_COLORS[name] ?? personPalette[index % personPalette.length],
+      })),
     [stats.byPerson],
   )
 
   const savingsInfo = useMemo(() => getSavingsProgress(savingsGoals), [savingsGoals])
 
-  // Gráfico de gastos anuais
+  const fixedPreview = useMemo(() => {
+    const selectedNames = new Set(selectedPersons)
+    const byName = new Map(persons.map((p) => [p.name, p]))
+    const byId = new Map(persons.map((p) => [p.id, p]))
+
+    let fixedIncomeTotal = 0
+    let fixedExpenseTotal = 0
+    const incomeByPerson: Record<string, number> = {}
+    const expenseByPerson: Record<string, number> = {}
+
+    for (const transaction of monthTransactions) {
+      const txPerson = byName.get(transaction.person)
+      if (!txPerson || !txPerson.allowSplit) continue
+
+      const allocations = allocateValueByPercentages(transaction.value, txPerson.splits || [])
+
+      for (const [recipientIdStr, share] of Object.entries(allocations)) {
+        if (!share) continue
+        const recipient = byId.get(Number(recipientIdStr))
+        if (!recipient || !selectedNames.has(recipient.name)) continue
+
+        if (transaction.type === 'Receita') {
+          fixedIncomeTotal += share
+          incomeByPerson[recipient.name] = (incomeByPerson[recipient.name] ?? 0) + share
+        } else {
+          fixedExpenseTotal += share
+          expenseByPerson[recipient.name] = (expenseByPerson[recipient.name] ?? 0) + share
+        }
+      }
+    }
+
+    return {
+      fixedIncomeTotal,
+      fixedExpenseTotal,
+      incomeByPerson,
+      expenseByPerson,
+    }
+  }, [monthTransactions, selectedPersons, persons])
+
   const annualSpendingChart = useMemo(() => {
     const currentYear = new Date().getFullYear()
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-    
-    // Filtrar transações do ano atual e pessoas selecionadas
-    const yearTransactions = allTransactions.filter((t) => {
-      const [, year] = t.competency.split('/')
-      return parseInt(year) === currentYear && selectedPersons.includes(t.person)
-    })
 
-    // Agrupar por mês
+    const selectedNames = new Set(selectedPersons)
+    const byName = new Map(persons.map((p) => [p.name, p]))
+    const byId = new Map(persons.map((p) => [p.id, p]))
+
     const monthlyData = months.map((monthName, index) => {
       const monthNum = String(index + 1).padStart(2, '0')
       const monthKey = `${monthNum}/${currentYear}`
-      
-      const monthExpenses = yearTransactions
-        .filter((t) => t.competency === monthKey && t.type === 'Despesa')
-        .reduce((sum, t) => sum + t.value, 0)
 
-      const monthIncome = yearTransactions
-        .filter((t) => t.competency === monthKey && t.type === 'Receita')
-        .reduce((sum, t) => sum + t.value, 0)
+      let monthExpenses = 0
+      let monthIncome = 0
+
+      for (const transaction of allTransactions) {
+        if (transaction.competency !== monthKey) continue
+        const txPerson = byName.get(transaction.person)
+        if (!txPerson) continue
+
+        if (txPerson.allowSplit) {
+          const allocations = allocateValueByPercentages(transaction.value, txPerson.splits || [])
+          for (const [recipientIdStr, share] of Object.entries(allocations)) {
+            if (!share) continue
+            const recipient = byId.get(Number(recipientIdStr))
+            if (!recipient || !selectedNames.has(recipient.name)) continue
+            if (transaction.type === 'Receita') monthIncome += share
+            else monthExpenses += share
+          }
+        } else {
+          if (!selectedNames.has(txPerson.name)) continue
+          if (transaction.type === 'Receita') monthIncome += transaction.value
+          else monthExpenses += transaction.value
+        }
+      }
 
       return {
         month: monthName,
@@ -207,32 +299,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     })
 
     return monthlyData
-  }, [allTransactions, selectedPersons])
+  }, [allTransactions, selectedPersons, persons])
 
-  // Gráfico de economia/poupança anual
   const annualSavingsChart = useMemo(() => {
     const currentYear = new Date().getFullYear()
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-    
-    // Filtrar transações do ano atual e pessoas selecionadas
-    const yearTransactions = allTransactions.filter((t) => {
-      const [, year] = t.competency.split('/')
-      return parseInt(year) === currentYear && selectedPersons.includes(t.person)
-    })
 
-    // Calcular economia acumulada mês a mês
+    const selectedNames = new Set(selectedPersons)
+    const byName = new Map(persons.map((p) => [p.name, p]))
+    const byId = new Map(persons.map((p) => [p.id, p]))
+
     let accumulatedSavings = 0
     const monthlySavings = months.map((monthName, index) => {
       const monthNum = String(index + 1).padStart(2, '0')
       const monthKey = `${monthNum}/${currentYear}`
-      
-      const monthExpenses = yearTransactions
-        .filter((t) => t.competency === monthKey && t.type === 'Despesa')
-        .reduce((sum, t) => sum + t.value, 0)
 
-      const monthIncome = yearTransactions
-        .filter((t) => t.competency === monthKey && t.type === 'Receita')
-        .reduce((sum, t) => sum + t.value, 0)
+      let monthExpenses = 0
+      let monthIncome = 0
+
+      for (const transaction of allTransactions) {
+        if (transaction.competency !== monthKey) continue
+        const txPerson = byName.get(transaction.person)
+        if (!txPerson) continue
+
+        if (txPerson.allowSplit) {
+          const allocations = allocateValueByPercentages(transaction.value, txPerson.splits || [])
+          for (const [recipientIdStr, share] of Object.entries(allocations)) {
+            if (!share) continue
+            const recipient = byId.get(Number(recipientIdStr))
+            if (!recipient || !selectedNames.has(recipient.name)) continue
+            if (transaction.type === 'Receita') monthIncome += share
+            else monthExpenses += share
+          }
+        } else {
+          if (!selectedNames.has(txPerson.name)) continue
+          if (transaction.type === 'Receita') monthIncome += transaction.value
+          else monthExpenses += transaction.value
+        }
+      }
 
       const monthSavings = monthIncome - monthExpenses
       accumulatedSavings += monthSavings
@@ -245,29 +349,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     })
 
     return monthlySavings
-  }, [allTransactions, savingsGoals, selectedPersons])
+  }, [allTransactions, savingsGoals, selectedPersons, persons])
 
   const personStats = useMemo(() => {
-    const stats: Record<string, { income: number; expenses: number; balance: number }> = {}
-    
-    persons.filter(p => p.active && selectedPersons.includes(p.name)).forEach((person) => {
-      const personExpenses = filteredTransactions
-        .filter((t) => t.type === 'Despesa' && (t.person === person.name || t.person === 'Ambos'))
-        .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+    const selectedNames = new Set(selectedPersons)
+    const incomeByPerson: Record<string, number> = {}
+    const expensesByPerson: Record<string, number> = {}
 
-      const personIncome = filteredTransactions
-        .filter((t) => t.type === 'Receita' && (t.person === person.name || t.person === 'Ambos'))
-        .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
-
-      stats[person.name] = {
-        income: personIncome,
-        expenses: personExpenses,
-        balance: personIncome - personExpenses,
+    for (const transaction of effectiveTransactions) {
+      if (!selectedNames.has(transaction.person)) continue
+      if (transaction.type === 'Receita') {
+        incomeByPerson[transaction.person] = (incomeByPerson[transaction.person] ?? 0) + transaction.value
+      } else {
+        expensesByPerson[transaction.person] = (expensesByPerson[transaction.person] ?? 0) + transaction.value
       }
-    })
+    }
+
+    const stats: Record<string, { income: number; expenses: number; balance: number }> = {}
+    for (const name of selectedPersons) {
+      const income = incomeByPerson[name] ?? 0
+      const expenses = expensesByPerson[name] ?? 0
+      stats[name] = {
+        income,
+        expenses,
+        balance: income - expenses,
+      }
+    }
 
     return stats
-  }, [filteredTransactions, persons, selectedPersons])
+  }, [effectiveTransactions, selectedPersons])
 
   const handleSimulator = () => {
     if (!simulatorForm.value) return
@@ -285,6 +395,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
 
     // Calcular saldo mês a mês considerando transações existentes
     const [currentMonth, currentYear] = selectedMonth.split('/')
+    const selectedNames = new Set(selectedPersons)
+    const byName = new Map(persons.map((p) => [p.name, p]))
+    const byId = new Map(persons.map((p) => [p.id, p]))
     const installmentsTable = Array.from({ length: installments }, (_, i) => {
       const month = parseInt(currentMonth) + i
       const year = parseInt(currentYear)
@@ -299,13 +412,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
       const monthKey = `${String(finalMonth).padStart(2, '0')}/${finalYear}`
       
       // Calcular saldo do mês considerando transações existentes e pessoas selecionadas
-      const monthTransactions = allTransactions.filter(t => t.competency === monthKey && selectedPersons.includes(t.person))
-      const monthIncome = monthTransactions
-        .filter(t => t.type === 'Receita')
-        .reduce((sum, t) => sum + t.value, 0)
-      const monthExpenses = monthTransactions
-        .filter(t => t.type === 'Despesa')
-        .reduce((sum, t) => sum + t.value, 0)
+      let monthIncome = 0
+      let monthExpenses = 0
+      const monthTransactions = allTransactions.filter(t => t.competency === monthKey)
+      for (const transaction of monthTransactions) {
+        const txPerson = byName.get(transaction.person)
+        if (!txPerson) continue
+
+        if (txPerson.allowSplit) {
+          const allocations = allocateValueByPercentages(transaction.value, txPerson.splits || [])
+          for (const [recipientIdStr, share] of Object.entries(allocations)) {
+            if (!share) continue
+            const recipient = byId.get(Number(recipientIdStr))
+            if (!recipient || !selectedNames.has(recipient.name)) continue
+            if (transaction.type === 'Receita') monthIncome += share
+            else monthExpenses += share
+          }
+        } else {
+          if (!selectedNames.has(txPerson.name)) continue
+          if (transaction.type === 'Receita') monthIncome += transaction.value
+          else monthExpenses += transaction.value
+        }
+      }
       const monthBalance = monthIncome - monthExpenses - installmentValue
       
       return {
@@ -331,7 +459,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
   }
 
   const selectAllPersons = () => {
-    setSelectedPersons(persons.filter(p => p.active).map(p => p.name))
+    setSelectedPersons(persons.filter(p => p.active && !p.allowSplit).map(p => p.name))
   }
 
   const deselectAllPersons = () => {
@@ -371,7 +499,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
                   </div>
                 </div>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {persons.filter(p => p.active).map((person) => (
+                  {persons.filter(p => p.active && !p.allowSplit).map((person) => (
                     <label
                       key={person.id}
                       className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 p-2 rounded"
@@ -442,6 +570,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
               helper={`R$ ${savingsInfo.totalSaved.toFixed(2)} / R$ ${savingsInfo.totalGoals.toFixed(2)}`}
             />
           </div>
+
+          {(fixedPreview.fixedIncomeTotal !== 0 || fixedPreview.fixedExpenseTotal !== 0) && (
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold mb-4">Rateio da Conta Fixa - {selectedMonth}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-3 bg-gray-50 dark:bg-slate-700/50">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-300">Receitas (Valor total)</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">R$ {fixedPreview.fixedIncomeTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-200">
+                    {Object.entries(fixedPreview.incomeByPerson)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([name, value]) => (
+                        <div key={name} className="flex justify-between">
+                          <span>{name}</span>
+                          <span className="font-medium">R$ {value.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    {Object.keys(fixedPreview.incomeByPerson).length === 0 && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Sem distribuição para as pessoas selecionadas</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-3 bg-gray-50 dark:bg-slate-700/50">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-300">Despesas (Valor total)</span>
+                    <span className="font-semibold text-red-600 dark:text-red-400">R$ {fixedPreview.fixedExpenseTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-200">
+                    {Object.entries(fixedPreview.expenseByPerson)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([name, value]) => (
+                        <div key={name} className="flex justify-between">
+                          <span>{name}</span>
+                          <span className="font-medium">R$ {value.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    {Object.keys(fixedPreview.expenseByPerson).length === 0 && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Sem distribuição para as pessoas selecionadas</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
       {Object.keys(personStats).length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -14,6 +14,7 @@ import { useFinance } from '../context/FinanceContext'
 import type { CreditCardInvoiceStatus, Transaction } from '../types/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
 import { financeService } from '../services/financeService'
+import { allocateValueByPercentages } from '../utils/finance'
 
 type MonthSummary = {
   totalCards: number
@@ -77,7 +78,7 @@ interface ClosureViewProps {
 
 export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonthChange, transactions }) => {
   const {
-    state: { creditCards, closedMonths, transactions: allTransactions },
+    state: { creditCards, closedMonths, persons },
     actions,
   } = useFinance()
 
@@ -209,7 +210,7 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
   const cardExpenses = useMemo(() => {
     return creditCards.map((card) => {
       // Filtrar transações de crédito do mês selecionado que pertencem a este cartão
-      const expenses = allTransactions
+      const expenses = transactions
         .filter((transaction) => {
           // Verificar se é do mês selecionado
           if (transaction.competency !== selectedMonth) return false
@@ -235,7 +236,7 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         usage: card.limit > 0 ? (expenses / card.limit) * 100 : 0,
       }
     })
-  }, [creditCards, allTransactions, selectedMonth])
+  }, [creditCards, transactions, selectedMonth])
 
   // Gráfico comparativo de uso dos cartões
   const cardUsageChart = useMemo(() => {
@@ -276,48 +277,58 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
 
   // Balanço de pagamentos entre pessoas
   const balanceByPerson = useMemo(() => {
-    // Despesas de Kaio (incluindo metade das despesas "Ambos")
-    const kaioExpenses = transactions
-      .filter((t) => t.type === 'Despesa' && (t.person === 'Kaio' || t.person === 'Ambos'))
-      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+    const realPersons = persons.filter((p) => p.active && !p.allowSplit)
+    const byName = new Map(persons.map((p) => [p.name, p]))
+    const byId = new Map(persons.map((p) => [p.id, p]))
 
-    // Receitas de Kaio (incluindo metade das receitas "Ambos")
-    const kaioIncome = transactions
-      .filter((t) => t.type === 'Receita' && (t.person === 'Kaio' || t.person === 'Ambos'))
-      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+    const incomeByPerson: Record<string, number> = {}
+    const expensesByPerson: Record<string, number> = {}
 
-    // Despesas de Gabriela (incluindo metade das despesas "Ambos")
-    const gabrielaExpenses = transactions
-      .filter((t) => t.type === 'Despesa' && (t.person === 'Gabriela' || t.person === 'Ambos'))
-      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+    const monthTransactions = transactions.filter((t) => t.competency === selectedMonth)
 
-    // Receitas de Gabriela (incluindo metade das receitas "Ambos")
-    const gabrielaIncome = transactions
-      .filter((t) => t.type === 'Receita' && (t.person === 'Gabriela' || t.person === 'Ambos'))
-      .reduce((sum, t) => sum + (t.person === 'Ambos' ? t.value / 2 : t.value), 0)
+    for (const transaction of monthTransactions) {
+      const txPerson = byName.get(transaction.person)
+      if (!txPerson) continue
 
-    const kaioBalance = kaioIncome - kaioExpenses
-    const gabrielaBalance = gabrielaIncome - gabrielaExpenses
+      if (txPerson.allowSplit) {
+        const allocations = allocateValueByPercentages(transaction.value, txPerson.splits || [])
+        for (const [recipientIdStr, share] of Object.entries(allocations)) {
+          if (!share) continue
+          const recipient = byId.get(Number(recipientIdStr))
+          if (!recipient || !recipient.active || recipient.allowSplit) continue
 
-    // Quanto cada um deve pagar (apenas informativo, sem calcular transferências)
-    const kaioToPay = kaioBalance < 0 ? Math.abs(kaioBalance) : 0
-    const gabrielaToPay = gabrielaBalance < 0 ? Math.abs(gabrielaBalance) : 0
+          if (transaction.type === 'Receita') {
+            incomeByPerson[recipient.name] = (incomeByPerson[recipient.name] ?? 0) + share
+          } else {
+            expensesByPerson[recipient.name] = (expensesByPerson[recipient.name] ?? 0) + share
+          }
+        }
+      } else {
+        if (!txPerson.active || txPerson.allowSplit) continue
 
-    return {
-      kaio: {
-        expenses: kaioExpenses,
-        income: kaioIncome,
-        balance: kaioBalance,
-        toPay: kaioToPay,
-      },
-      gabriela: {
-        expenses: gabrielaExpenses,
-        income: gabrielaIncome,
-        balance: gabrielaBalance,
-        toPay: gabrielaToPay,
-      },
+        if (transaction.type === 'Receita') {
+          incomeByPerson[txPerson.name] = (incomeByPerson[txPerson.name] ?? 0) + transaction.value
+        } else {
+          expensesByPerson[txPerson.name] = (expensesByPerson[txPerson.name] ?? 0) + transaction.value
+        }
+      }
     }
-  }, [transactions])
+
+    const result: Record<string, { income: number; expenses: number; balance: number; toPay: number }> = {}
+    for (const person of realPersons) {
+      const income = incomeByPerson[person.name] ?? 0
+      const expenses = expensesByPerson[person.name] ?? 0
+      const balance = income - expenses
+      result[person.name] = {
+        income,
+        expenses,
+        balance,
+        toPay: balance < 0 ? Math.abs(balance) : 0,
+      }
+    }
+
+    return result
+  }, [transactions, persons, selectedMonth])
 
   return (
     <div className="space-y-6">
@@ -350,95 +361,68 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
         <h3 className="text-lg font-semibold mb-4">Balanço de Pagamentos - {selectedMonth}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          {/* Kaio */}
-          <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-gray-50 dark:bg-slate-700/50">
-            <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">Kaio</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-300">Receitas:</span>
-                <span className="font-semibold text-green-600 dark:text-green-400">R$ {balanceByPerson.kaio.income.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-300">Despesas:</span>
-                <span className="font-semibold text-red-600 dark:text-red-400">R$ {balanceByPerson.kaio.expenses.toFixed(2)}</span>
-              </div>
-              <div className="border-t border-gray-200 dark:border-slate-600 pt-2 flex justify-between">
-                <span className="text-gray-700 dark:text-gray-200 font-medium">Saldo:</span>
-                <span
-                  className={`font-bold ${
-                    balanceByPerson.kaio.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  R$ {balanceByPerson.kaio.balance.toFixed(2)}
-                </span>
-              </div>
-              {balanceByPerson.kaio.toPay > 0 && (
-                <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
-                  <div className="flex justify-between items-center">
-                    <span className="text-red-700 dark:text-red-400 font-medium">A pagar:</span>
-                    <span className="font-bold text-lg text-red-600 dark:text-red-400">R$ {balanceByPerson.kaio.toPay.toFixed(2)}</span>
+          {Object.entries(balanceByPerson).length > 0 ? (
+            Object.entries(balanceByPerson).map(([personName, personBalance]) => (
+              <div
+                key={personName}
+                className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-gray-50 dark:bg-slate-700/50"
+              >
+                <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">{personName}</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Receitas:</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">R$ {personBalance.income.toFixed(2)}</span>
                   </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Gabriela */}
-          <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-gray-50 dark:bg-slate-700/50">
-            <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">Gabriela</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-300">Receitas:</span>
-                <span className="font-semibold text-green-600 dark:text-green-400">R$ {balanceByPerson.gabriela.income.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-300">Despesas:</span>
-                <span className="font-semibold text-red-600 dark:text-red-400">R$ {balanceByPerson.gabriela.expenses.toFixed(2)}</span>
-              </div>
-              <div className="border-t border-gray-200 dark:border-slate-600 pt-2 flex justify-between">
-                <span className="text-gray-700 dark:text-gray-200 font-medium">Saldo:</span>
-                <span
-                  className={`font-bold ${
-                    balanceByPerson.gabriela.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  R$ {balanceByPerson.gabriela.balance.toFixed(2)}
-                </span>
-              </div>
-              {balanceByPerson.gabriela.toPay > 0 && (
-                <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
-                  <div className="flex justify-between items-center">
-                    <span className="text-red-700 dark:text-red-400 font-medium">A pagar:</span>
-                    <span className="font-bold text-lg text-red-600 dark:text-red-400">R$ {balanceByPerson.gabriela.toPay.toFixed(2)}</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Despesas:</span>
+                    <span className="font-semibold text-red-600 dark:text-red-400">R$ {personBalance.expenses.toFixed(2)}</span>
                   </div>
+                  <div className="border-t border-gray-200 dark:border-slate-600 pt-2 flex justify-between">
+                    <span className="text-gray-700 dark:text-gray-200 font-medium">Saldo:</span>
+                    <span
+                      className={`font-bold ${personBalance.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                    >
+                      R$ {personBalance.balance.toFixed(2)}
+                    </span>
+                  </div>
+                  {personBalance.toPay > 0 && (
+                    <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                      <div className="flex justify-between items-center">
+                        <span className="text-red-700 dark:text-red-400 font-medium">A pagar:</span>
+                        <span className="font-bold text-lg text-red-600 dark:text-red-400">R$ {personBalance.toPay.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+            ))
+          ) : (
+            <div className="col-span-2 text-center text-sm text-gray-500 dark:text-gray-400">
+              Nenhuma pessoa real encontrada para este fechamento.
             </div>
-          </div>
+          )}
         </div>
 
         {/* Resumo informativo */}
-        {(balanceByPerson.kaio.toPay > 0 || balanceByPerson.gabriela.toPay > 0) && (
+        {Object.values(balanceByPerson).some((p) => p.toPay > 0) && (
           <div className="border-2 border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/30 rounded-lg p-4">
             <p className="font-semibold text-lg text-gray-800 dark:text-gray-100 mb-2">Resumo do Fechamento:</p>
             <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-              {balanceByPerson.kaio.toPay > 0 && (
-                <p>
-                  • <strong>Kaio</strong> deve pagar: <strong className="text-red-600 dark:text-red-400">R$ {balanceByPerson.kaio.toPay.toFixed(2)}</strong>
-                </p>
-              )}
-              {balanceByPerson.gabriela.toPay > 0 && (
-                <p>
-                  • <strong>Gabriela</strong> deve pagar: <strong className="text-red-600 dark:text-red-400">R$ {balanceByPerson.gabriela.toPay.toFixed(2)}</strong>
-                </p>
-              )}
+              {Object.entries(balanceByPerson)
+                .filter(([, data]) => data.toPay > 0)
+                .map(([name, data]) => (
+                  <p key={name}>
+                    • <strong>{name}</strong> deve pagar:{' '}
+                    <strong className="text-red-600 dark:text-red-400">R$ {data.toPay.toFixed(2)}</strong>
+                  </p>
+                ))}
             </div>
           </div>
         )}
 
-        {balanceByPerson.kaio.toPay === 0 && balanceByPerson.gabriela.toPay === 0 && (
+        {Object.values(balanceByPerson).every((p) => p.toPay === 0) && Object.values(balanceByPerson).length > 0 && (
           <div className="border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/30 rounded-lg p-4">
-            <p className="font-semibold text-green-700 dark:text-green-400">✓ Ambos estão com saldo positivo! Nenhum pagamento necessário.</p>
+            <p className="font-semibold text-green-700 dark:text-green-400">✓ Todas as pessoas estão com saldo positivo! Nenhum pagamento necessário.</p>
           </div>
         )}
       </div>

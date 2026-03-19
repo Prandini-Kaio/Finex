@@ -60,8 +60,8 @@ interface FinanceActions {
   addInvestment: (payload: InvestmentPayload) => Promise<Investment>
   updateInvestment: (id: number, payload: InvestmentPayload) => Promise<Investment>
   deleteInvestment: (id: number) => Promise<void>
-  createPerson: (payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }) => Promise<Person>
-  updatePerson: (id: number, payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }) => Promise<Person>
+  createPerson: (payload: { name: string; allowSplit?: boolean; splits?: Person['splits'] }) => Promise<Person>
+  updatePerson: (id: number, payload: { name: string; allowSplit?: boolean; splits?: Person['splits'] }) => Promise<Person>
   deletePerson: (id: number, payload: { migrateToPersonId?: number; deleteTransactions: boolean }) => Promise<void>
 }
 
@@ -281,13 +281,13 @@ export function useFinanceData() {
     await refresh()
   }, [refresh])
 
-  const createPerson = useCallback(async (payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }) => {
+  const createPerson = useCallback(async (payload: { name: string; allowSplit?: boolean; splits?: Person['splits'] }) => {
     const created = await financeService.createPerson(payload)
     await refresh()
     return created
   }, [refresh])
 
-  const updatePerson = useCallback(async (id: number, payload: { name: string; allowSplit?: boolean; splitWithPersonIds?: number[] }) => {
+  const updatePerson = useCallback(async (id: number, payload: { name: string; allowSplit?: boolean; splits?: Person['splits'] }) => {
     const updated = await financeService.updatePerson(id, payload)
     await refresh()
     return updated

@@ -2,6 +2,7 @@ package com.prandini.financecontroller.domain.service;
 
 import com.prandini.financecontroller.domain.model.Budget;
 import com.prandini.financecontroller.domain.model.Person;
+import com.prandini.financecontroller.domain.model.PersonSplit;
 import com.prandini.financecontroller.domain.model.Transaction;
 import com.prandini.financecontroller.domain.model.enums.BudgetType;
 import com.prandini.financecontroller.domain.model.enums.TransactionType;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -57,32 +59,63 @@ public class BudgetService {
 
     private BigDecimal calculateTotalIncome(String competency, Person person) {
         List<Transaction> transactions = transactionRepository.findByCompetencyAndType(competency, TransactionType.RECEITA);
-        Person ambosPerson = personRepository.findByName("Ambos").orElse(null);
-        
-        if (ambosPerson != null && person.getId().equals(ambosPerson.getId())) {
-            return transactions.stream()
-                    .map(Transaction::getValue)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-        } else {
-            return transactions.stream()
-                    .filter(t -> {
-                        if (t.getPerson() == null) return false;
-                        if (t.getPerson().getId().equals(person.getId())) {
-                            return true;
-                        }
-                        if (ambosPerson != null && t.getPerson().getId().equals(ambosPerson.getId())) {
-                            return true;
-                        }
-                        return false;
-                    })
-                    .map(t -> {
-                        if (ambosPerson != null && t.getPerson().getId().equals(ambosPerson.getId())) {
-                            return t.getValue().divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
-                        }
-                        return t.getValue();
-                    })
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal total = BigDecimal.ZERO;
+        for (Transaction transaction : transactions) {
+            if (transaction.getPerson() == null) {
+                continue;
+            }
+
+            Person transactionPerson = transaction.getPerson();
+            if (transactionPerson.getId().equals(person.getId())) {
+                total = total.add(transaction.getValue());
+                continue;
+            }
+
+            if (Boolean.TRUE.equals(transactionPerson.getAllowSplit())) {
+                total = total.add(allocateShare(transaction.getValue(), transactionPerson, person.getId()));
+            }
         }
+
+        return total;
+    }
+
+    private BigDecimal allocateShare(BigDecimal value, Person distributor, Long targetPersonId) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (distributor.getSplits() == null || distributor.getSplits().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal scaledValue = value.setScale(2, RoundingMode.HALF_UP);
+        List<PersonSplit> orderedSplits = distributor.getSplits().stream()
+                .sorted(Comparator.comparing(split -> split.getId().getSplitWithPersonId()))
+                .toList();
+
+        BigDecimal allocatedSum = BigDecimal.ZERO;
+        BigDecimal targetShare = BigDecimal.ZERO;
+
+        for (int i = 0; i < orderedSplits.size(); i++) {
+            PersonSplit split = orderedSplits.get(i);
+            Long recipientId = split.getId().getSplitWithPersonId();
+            if (i < orderedSplits.size() - 1) {
+                BigDecimal share = scaledValue
+                        .multiply(split.getPercentage())
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                allocatedSum = allocatedSum.add(share);
+                if (recipientId.equals(targetPersonId)) {
+                    targetShare = share;
+                }
+            } else {
+                BigDecimal residual = scaledValue.subtract(allocatedSum).setScale(2, RoundingMode.HALF_UP);
+                if (recipientId.equals(targetPersonId)) {
+                    targetShare = residual;
+                }
+            }
+        }
+
+        return targetShare;
     }
 
     @Transactional

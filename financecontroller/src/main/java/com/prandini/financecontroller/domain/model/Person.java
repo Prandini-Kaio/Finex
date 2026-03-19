@@ -27,14 +27,9 @@ public class Person {
     @Column(nullable = false)
     private Boolean allowSplit = false;
 
-    @ManyToMany
-    @JoinTable(
-            name = "person_split_relationships",
-            joinColumns = @JoinColumn(name = "person_id"),
-            inverseJoinColumns = @JoinColumn(name = "split_with_person_id")
-    )
     @Builder.Default
-    private Set<Person> splitWithPersons = new HashSet<>();
+    @OneToMany(mappedBy = "person", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PersonSplit> splits = new HashSet<>();
 
     @PrePersist
     protected void onCreate() {

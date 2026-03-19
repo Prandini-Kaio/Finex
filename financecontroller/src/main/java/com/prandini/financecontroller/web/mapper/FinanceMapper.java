@@ -129,9 +129,12 @@ public final class FinanceMapper {
     }
 
     public static PersonResponse toResponse(Person person) {
-        List<Long> splitWithPersonIds = person.getSplitWithPersons() != null
-                ? person.getSplitWithPersons().stream()
-                        .map(Person::getId)
+        List<PersonSplitResponse> splits = person.getSplits() != null
+                ? person.getSplits().stream()
+                        .map(split -> new PersonSplitResponse(
+                                split.getId().getSplitWithPersonId(),
+                                split.getPercentage()
+                        ))
                         .toList()
                 : List.of();
         return new PersonResponse(
@@ -139,7 +142,7 @@ public final class FinanceMapper {
                 person.getName(),
                 person.getActive(),
                 person.getAllowSplit(),
-                splitWithPersonIds
+                splits
         );
     }
 }

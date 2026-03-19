@@ -25,15 +25,48 @@ export const SettingsView: React.FC = () => {
   const [newPersonName, setNewPersonName] = useState('')
   const [newPersonAllowSplit, setNewPersonAllowSplit] = useState(false)
   const [newPersonSplitWithIds, setNewPersonSplitWithIds] = useState<number[]>([])
+  const [newPersonSplitPercentages, setNewPersonSplitPercentages] = useState<Record<number, string>>({})
   const [editingPersonId, setEditingPersonId] = useState<number | null>(null)
   const [editingPersonName, setEditingPersonName] = useState('')
   const [editingPersonAllowSplit, setEditingPersonAllowSplit] = useState(false)
   const [editingPersonSplitWithIds, setEditingPersonSplitWithIds] = useState<number[]>([])
+  const [editingPersonSplitPercentages, setEditingPersonSplitPercentages] = useState<Record<number, string>>({})
   const [deletingPersonId, setDeletingPersonId] = useState<number | null>(null)
   const [deleteOption, setDeleteOption] = useState<'migrate' | 'delete'>('migrate')
   const [migrateToPersonId, setMigrateToPersonId] = useState<number | null>(null)
   const [editingCardId, setEditingCardId] = useState<number | null>(null)
   const [editCardForm, setEditCardForm] = useState(() => getCardDefaults(persons[0]?.id))
+  const [splitPercentError, setSplitPercentError] = useState<string | null>(null)
+
+  const computeEqualPercentages = (ids: number[]): Record<number, string> => {
+    const sorted = [...ids].sort((a, b) => a - b)
+    const count = sorted.length
+    const result: Record<number, string> = {}
+    if (count === 0) return result
+    if (count === 1) {
+      result[sorted[0]] = '100.00'
+      return result
+    }
+    const base = Number((100 / count).toFixed(2))
+    const residual = Number((100 - base * (count - 1)).toFixed(2))
+    for (let i = 0; i < count; i++) {
+      const pct = i === count - 1 ? residual : base
+      result[sorted[i]] = pct.toFixed(2)
+    }
+    return result
+  }
+
+  const getSplitSum = (ids: number[], percentages: Record<number, string>) => {
+    return ids.reduce((sum, id) => {
+      const n = Number(percentages[id])
+      return sum + (Number.isFinite(n) ? n : 0)
+    }, 0)
+  }
+
+  const isSplitSumValid = (ids: number[], percentages: Record<number, string>) => {
+    const sum = getSplitSum(ids, percentages)
+    return Math.abs(sum - 100) <= 0.01
+  }
 
   const handleAddCategory = async () => {
     if (!newCategory || categories.includes(newCategory)) return
@@ -87,21 +120,43 @@ export const SettingsView: React.FC = () => {
 
   const handleAddPerson = async () => {
     if (!newPersonName.trim()) return
-    await actions.createPerson({ 
-      name: newPersonName.trim(), 
+    if (newPersonAllowSplit) {
+      const valid = newPersonSplitWithIds.length > 0 && isSplitSumValid(newPersonSplitWithIds, newPersonSplitPercentages)
+      if (!valid) {
+        setSplitPercentError('A soma dos percentuais deve ser 100%')
+        return
+      }
+    }
+
+    setSplitPercentError(null)
+    await actions.createPerson({
+      name: newPersonName.trim(),
       allowSplit: newPersonAllowSplit,
-      splitWithPersonIds: newPersonAllowSplit ? newPersonSplitWithIds : undefined
+      splits: newPersonAllowSplit
+        ? newPersonSplitWithIds.map((splitWithPersonId) => ({
+            splitWithPersonId,
+            percentage: Number(newPersonSplitPercentages[splitWithPersonId] ?? 0),
+          }))
+        : undefined,
     })
     setNewPersonName('')
     setNewPersonAllowSplit(false)
     setNewPersonSplitWithIds([])
+    setNewPersonSplitPercentages({})
   }
 
   const handleStartEditPerson = (person: PersonType) => {
     setEditingPersonId(person.id)
     setEditingPersonName(person.name)
     setEditingPersonAllowSplit(person.allowSplit)
-    setEditingPersonSplitWithIds(person.splitWithPersonIds || [])
+    const splits = person.splits || []
+    setEditingPersonSplitWithIds(splits.map((s) => s.splitWithPersonId))
+    const nextPercentages: Record<number, string> = {}
+    for (const s of splits) {
+      nextPercentages[s.splitWithPersonId] = Number(s.percentage).toFixed(2)
+    }
+    setEditingPersonSplitPercentages(nextPercentages)
+    setSplitPercentError(null)
   }
 
   const handleCancelEditPerson = () => {
@@ -109,19 +164,36 @@ export const SettingsView: React.FC = () => {
     setEditingPersonName('')
     setEditingPersonAllowSplit(false)
     setEditingPersonSplitWithIds([])
+    setEditingPersonSplitPercentages({})
+    setSplitPercentError(null)
   }
 
   const handleSaveEditPerson = async () => {
     if (!editingPersonId || !editingPersonName.trim()) return
-    await actions.updatePerson(editingPersonId, { 
-      name: editingPersonName.trim(), 
+    if (editingPersonAllowSplit) {
+      const valid = editingPersonSplitWithIds.length > 0 && isSplitSumValid(editingPersonSplitWithIds, editingPersonSplitPercentages)
+      if (!valid) {
+        setSplitPercentError('A soma dos percentuais deve ser 100%')
+        return
+      }
+    }
+
+    setSplitPercentError(null)
+    await actions.updatePerson(editingPersonId, {
+      name: editingPersonName.trim(),
       allowSplit: editingPersonAllowSplit,
-      splitWithPersonIds: editingPersonAllowSplit ? editingPersonSplitWithIds : undefined
+      splits: editingPersonAllowSplit
+        ? editingPersonSplitWithIds.map((splitWithPersonId) => ({
+            splitWithPersonId,
+            percentage: Number(editingPersonSplitPercentages[splitWithPersonId] ?? 0),
+          }))
+        : undefined,
     })
     setEditingPersonId(null)
     setEditingPersonName('')
     setEditingPersonAllowSplit(false)
     setEditingPersonSplitWithIds([])
+    setEditingPersonSplitPercentages({})
   }
 
   const handleStartDeletePerson = (person: PersonType) => {
@@ -284,6 +356,8 @@ export const SettingsView: React.FC = () => {
                         setEditingPersonAllowSplit(e.target.checked)
                         if (!e.target.checked) {
                           setEditingPersonSplitWithIds([])
+                          setEditingPersonSplitPercentages({})
+                          setSplitPercentError(null)
                         }
                       }}
                       className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
@@ -302,18 +376,39 @@ export const SettingsView: React.FC = () => {
                               type="checkbox"
                               checked={editingPersonSplitWithIds.includes(person.id)}
                               onChange={(e) => {
-                                if (e.target.checked) {
-                                  setEditingPersonSplitWithIds([...editingPersonSplitWithIds, person.id])
-                                } else {
-                                  setEditingPersonSplitWithIds(editingPersonSplitWithIds.filter(id => id !== person.id))
-                                }
+                                const nextIds = e.target.checked
+                                  ? [...editingPersonSplitWithIds, person.id]
+                                  : editingPersonSplitWithIds.filter(id => id !== person.id)
+                                setEditingPersonSplitWithIds(nextIds)
+                                setEditingPersonSplitPercentages(computeEqualPercentages(nextIds))
+                                setSplitPercentError(null)
                               }}
                               className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                             />
                             <span className="text-sm text-gray-700 dark:text-gray-300">{person.name}</span>
+                            {editingPersonSplitWithIds.includes(person.id) && (
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={editingPersonSplitPercentages[person.id] ?? '0.00'}
+                                onChange={(e) =>
+                                  setEditingPersonSplitPercentages((prev) => ({
+                                    ...prev,
+                                    [person.id]: e.target.value,
+                                  }))
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-24 px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                              />
+                            )}
                           </label>
                         ))}
                       </div>
+                      {splitPercentError && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-2">{splitPercentError}</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -326,9 +421,16 @@ export const SettingsView: React.FC = () => {
                         <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded w-fit">
                           Permite divisão
                         </span>
-                        {person.splitWithPersonIds && person.splitWithPersonIds.length > 0 && (
+                        {person.splits && person.splits.length > 0 && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            Divide com: {persons.filter(p => person.splitWithPersonIds?.includes(p.id)).map(p => p.name).join(', ')}
+                            Rateia com:{' '}
+                            {person.splits
+                              .map((s) => {
+                                const p = persons.find((pp) => pp.id === s.splitWithPersonId)
+                                const name = p?.name || String(s.splitWithPersonId)
+                                return `${name}: ${Number(s.percentage).toFixed(2)}%`
+                              })
+                              .join(', ')}
                           </span>
                         )}
                       </div>
@@ -375,6 +477,8 @@ export const SettingsView: React.FC = () => {
                 setNewPersonAllowSplit(e.target.checked)
                 if (!e.target.checked) {
                   setNewPersonSplitWithIds([])
+                  setNewPersonSplitPercentages({})
+                  setSplitPercentError(null)
                 }
               }}
               className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
@@ -393,18 +497,39 @@ export const SettingsView: React.FC = () => {
                       type="checkbox"
                       checked={newPersonSplitWithIds.includes(person.id)}
                       onChange={(e) => {
-                        if (e.target.checked) {
-                          setNewPersonSplitWithIds([...newPersonSplitWithIds, person.id])
-                        } else {
-                          setNewPersonSplitWithIds(newPersonSplitWithIds.filter(id => id !== person.id))
-                        }
+                        const nextIds = e.target.checked
+                          ? [...newPersonSplitWithIds, person.id]
+                          : newPersonSplitWithIds.filter(id => id !== person.id)
+                        setNewPersonSplitWithIds(nextIds)
+                        setNewPersonSplitPercentages(computeEqualPercentages(nextIds))
+                        setSplitPercentError(null)
                       }}
                       className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                     />
                     <span className="text-sm text-gray-700 dark:text-gray-300">{person.name}</span>
+                    {newPersonSplitWithIds.includes(person.id) && (
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={newPersonSplitPercentages[person.id] ?? '0.00'}
+                        onChange={(e) =>
+                          setNewPersonSplitPercentages((prev) => ({
+                            ...prev,
+                            [person.id]: e.target.value,
+                          }))
+                        }
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-24 px-2 py-1 text-xs border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                      />
+                    )}
                   </label>
                 ))}
               </div>
+              {splitPercentError && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-2">{splitPercentError}</p>
+              )}
             </div>
           )}
         </div>

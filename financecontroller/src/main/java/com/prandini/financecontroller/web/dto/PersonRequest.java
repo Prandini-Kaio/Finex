@@ -5,7 +5,7 @@ import java.util.List;
 public record PersonRequest(
         String name,
         Boolean allowSplit,
-        List<Long> splitWithPersonIds
+        List<PersonSplitRequest> splits
 ) {
 }
 

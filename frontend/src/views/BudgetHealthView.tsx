@@ -13,7 +13,7 @@ import {
 import { useFinance } from '../context/FinanceContext'
 import { useTheme } from '../context/ThemeContext'
 import type { BudgetPayload, BudgetType, Transaction } from '../types/finance'
-import { getPersonIdByName } from '../utils/finance'
+import { allocateValueByPercentages, getPersonIdByName } from '../utils/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
 
 interface BudgetHealthViewProps {
@@ -53,36 +53,34 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
   const tooltipBorder = isDark ? '#334155' : '#e5e7eb'
   const tooltipText = isDark ? '#e2e8f0' : '#111827'
 
-  // Calcular receitas da pessoa para o mês selecionado
+  const monthTransactions = useMemo(() => {
+    return transactions.filter((t) => t.competency === selectedMonth)
+  }, [transactions, selectedMonth])
+
+  // Calcular receitas da pessoa para o mês selecionado (inclui rateio da conta fixa por percentuais)
   const personIncome = useMemo(() => {
-    if (form.person === 'Ambos') {
-      // Para "Ambos", somar todas as receitas (Kaio, Gabriela e Ambos sem dividir)
-      return transactions
-        .filter((t) => {
-          if (t.type !== 'Receita') return false
-          if (t.competency !== selectedMonth) return false
-          return true
-        })
-        .reduce((sum, t) => sum + t.value, 0)
-    } else {
-      // Para pessoa específica, incluir suas receitas + metade das receitas "Ambos"
-      return transactions
-        .filter((t) => {
-          if (t.type !== 'Receita') return false
-          if (t.competency !== selectedMonth) return false
-          if (t.person === form.person) return true
-          if (t.person === 'Ambos') return true
-          return false
-        })
-        .reduce((sum, t) => {
-          // Se for "Ambos", dividir por 2
-          if (t.person === 'Ambos') {
-            return sum + t.value / 2
-          }
-          return sum + t.value
-        }, 0)
+    const personByName = new Map(persons.map((p) => [p.name, p]))
+    const targetPerson = personByName.get(form.person)
+    if (!targetPerson) return 0
+
+    let total = 0
+
+    for (const t of monthTransactions) {
+      if (t.type !== 'Receita') continue
+      const txPerson = personByName.get(t.person)
+      if (!txPerson) continue
+
+      if (!txPerson.allowSplit) {
+        if (t.person === form.person) total += t.value
+      } else {
+        const allocations = allocateValueByPercentages(t.value, txPerson.splits || [])
+        const share = allocations[targetPerson.id] ?? 0
+        total += share
+      }
     }
-  }, [transactions, selectedMonth, form.person])
+
+    return total
+  }, [monthTransactions, persons, form.person])
 
   // Calcular valor quando for porcentagem
   const calculatedAmount = useMemo(() => {
@@ -99,14 +97,34 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
 
   const enrichedBudgets = useMemo(() => {
     return filteredBudgets.map((budget) => {
-      const spent = transactions
-        .filter(
-          (transaction) =>
-            transaction.type === 'Despesa' &&
-            transaction.category === budget.category &&
-            transaction.person === budget.person,
-        )
-        .reduce((sum, transaction) => sum + transaction.value, 0)
+      const personByName = new Map(persons.map((p) => [p.name, p]))
+      const targetPerson = personByName.get(budget.person)
+      if (!targetPerson) {
+        return {
+          ...budget,
+          spent: 0,
+          remaining: budget.amount,
+          percentage: 0,
+        }
+      }
+
+      let spent = 0
+      for (const transaction of monthTransactions) {
+        if (transaction.type !== 'Despesa') continue
+        if (transaction.category !== budget.category) continue
+
+        const txPerson = personByName.get(transaction.person)
+        if (!txPerson) continue
+
+        if (!txPerson.allowSplit) {
+          if (transaction.person === budget.person) spent += transaction.value
+        } else {
+          const allocations = allocateValueByPercentages(transaction.value, txPerson.splits || [])
+          const share = allocations[targetPerson.id] ?? 0
+          spent += share
+        }
+      }
+
       const percentage = budget.amount > 0 ? (spent / budget.amount) * 100 : 0
       return {
         ...budget,
@@ -115,7 +133,7 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
         percentage,
       }
     })
-  }, [filteredBudgets, transactions])
+  }, [filteredBudgets, monthTransactions, persons])
 
   // Estatísticas gerais
   const totalStats = useMemo(() => {
@@ -390,7 +408,7 @@ export const BudgetHealthView: React.FC<BudgetHealthViewProps> = ({ selectedMont
               onChange={(event) => setForm({ ...form, person: event.target.value })}
               className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
             >
-              {persons.filter(p => p.active).map((person) => (
+              {persons.filter(p => p.active && !p.allowSplit).map((person) => (
                 <option key={person.id} value={person.name}>{person.name}</option>
               ))}
             </select>

@@ -137,3 +137,34 @@ export function getInstallmentPreview(purchaseDate: string, totalValue: number, 
   }
 }
 
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
+
+export function allocateValueByPercentages(
+  totalValue: number,
+  splits: Array<{ splitWithPersonId: number; percentage: number }>,
+): Record<number, number> {
+  if (!Number.isFinite(totalValue) || !splits || splits.length === 0) {
+    return {}
+  }
+
+  const sorted = [...splits].sort((a, b) => a.splitWithPersonId - b.splitWithPersonId)
+  const roundedTotal = round2(totalValue)
+
+  let allocatedSum = 0
+  const result: Record<number, number> = {}
+
+  for (let i = 0; i < sorted.length; i++) {
+    const split = sorted[i]
+    if (i < sorted.length - 1) {
+      const share = round2((roundedTotal * split.percentage) / 100)
+      result[split.splitWithPersonId] = share
+      allocatedSum = round2(allocatedSum + share)
+    } else {
+      const residual = round2(roundedTotal - allocatedSum)
+      result[split.splitWithPersonId] = residual
+    }
+  }
+
+  return result
+}
+

@@ -1,0 +1,68 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-percentage-column-to-person-split-relationships
+      author: system
+      preConditions:
+        - onFail: MARK_RAN
+      changes:
+        - addColumn:
+            tableName: person_split_relationships
+            columns:
+              - column:
+                  name: percentage
+                  type: DECIMAL(5,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: true
+
+        - sql:
+            sql: |
+              UPDATE persons
+              SET allow_split = true
+              WHERE name = 'Ambos';
+
+        - sql:
+            sql: |
+              INSERT INTO person_split_relationships (person_id, split_with_person_id, percentage)
+              SELECT
+                p.id AS person_id,
+                pr.id AS split_with_person_id,
+                50.00 AS percentage
+              FROM persons p
+              JOIN persons pr ON pr.name IN ('Kaio','Gabriela')
+              WHERE p.name = 'Ambos'
+              ON CONFLICT (person_id, split_with_person_id) DO NOTHING;
+
+        - sql:
+            sql: |
+              WITH ranked AS (
+                SELECT
+                  person_id,
+                  split_with_person_id,
+                  ROW_NUMBER() OVER (PARTITION BY person_id ORDER BY split_with_person_id) AS rn,
+                  COUNT(*) OVER (PARTITION BY person_id) AS cnt,
+                  ROUND((100.0 / COUNT(*) OVER (PARTITION BY person_id))::numeric, 2) AS each_pct
+                FROM person_split_relationships
+                WHERE percentage IS NULL OR percentage = 0
+              )
+              UPDATE person_split_relationships ps
+              SET percentage =
+                ROUND(
+                  CASE
+                    WHEN r.rn = r.cnt THEN 100.00 - (r.each_pct * (r.cnt - 1))
+                    ELSE r.each_pct
+                  END
+                , 2)
+              FROM ranked r
+              WHERE ps.person_id = r.person_id
+                AND ps.split_with_person_id = r.split_with_person_id;
+
+        - addNotNullConstraint:
+            tableName: person_split_relationships
+            columnName: percentage
+            columnDataType: DECIMAL(5,2)
+      rollback:
+        - dropColumn:
+            tableName: person_split_relationships
+            columnName: percentage
+

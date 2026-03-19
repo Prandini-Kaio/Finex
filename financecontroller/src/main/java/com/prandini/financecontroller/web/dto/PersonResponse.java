@@ -7,7 +7,7 @@ public record PersonResponse(
         String name,
         Boolean active,
         Boolean allowSplit,
-        List<Long> splitWithPersonIds
+        List<PersonSplitResponse> splits
 ) {
 }
 
