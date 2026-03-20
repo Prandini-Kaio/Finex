@@ -70,6 +70,9 @@ const formatMonthLabel = (value: string) => {
   return date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
 }
 
+const formatBRL = (n: number) =>
+  n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
 interface ClosureViewProps {
   selectedMonth: string
   onMonthChange: (value: string) => void
@@ -314,7 +317,10 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
       }
     }
 
-    const result: Record<string, { income: number; expenses: number; balance: number; toPay: number }> = {}
+    const result: Record<
+      string,
+      { income: number; expenses: number; balance: number; toPay: number; toReceive: number }
+    > = {}
     for (const person of realPersons) {
       const income = incomeByPerson[person.name] ?? 0
       const expenses = expensesByPerson[person.name] ?? 0
@@ -324,11 +330,45 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         expenses,
         balance,
         toPay: balance < 0 ? Math.abs(balance) : 0,
+        toReceive: balance > 0 ? balance : 0,
       }
     }
 
     return result
   }, [transactions, persons, selectedMonth])
+
+  const balanceEntriesSorted = useMemo(() => {
+    return Object.entries(balanceByPerson).sort(([nameA, a], [nameB, b]) => {
+      if (b.toPay !== a.toPay) return b.toPay - a.toPay
+      if (b.toReceive !== a.toReceive) return b.toReceive - a.toReceive
+      return nameA.localeCompare(nameB, 'pt-BR')
+    })
+  }, [balanceByPerson])
+
+  const balanceTotals = useMemo(() => {
+    const values = Object.values(balanceByPerson)
+    return {
+      totalToPay: values.reduce((s, p) => s + p.toPay, 0),
+      totalToReceive: values.reduce((s, p) => s + p.toReceive, 0),
+    }
+  }, [balanceByPerson])
+
+  const twoPersonSettlement = useMemo(() => {
+    const entries = balanceEntriesSorted
+    if (entries.length !== 2) return null
+    const [e1, e2] = entries
+    const [name1, d1] = e1
+    const [name2, d2] = e2
+    if (d1.toPay > 0 && d2.toReceive > 0) {
+      const amount = Math.min(d1.toPay, d2.toReceive)
+      return { from: name1, to: name2, amount }
+    }
+    if (d2.toPay > 0 && d1.toReceive > 0) {
+      const amount = Math.min(d2.toPay, d1.toReceive)
+      return { from: name2, to: name1, amount }
+    }
+    return null
+  }, [balanceEntriesSorted])
 
   return (
     <div className="space-y-6">
@@ -357,72 +397,216 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         </div>
       </div>
 
-      {/* Balanço de Pagamentos - No topo */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
-        <h3 className="text-lg font-semibold mb-4">Balanço de Pagamentos - {selectedMonth}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          {Object.entries(balanceByPerson).length > 0 ? (
-            Object.entries(balanceByPerson).map(([personName, personBalance]) => (
-              <div
-                key={personName}
-                className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-gray-50 dark:bg-slate-700/50"
-              >
-                <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">{personName}</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-300">Receitas:</span>
-                    <span className="font-semibold text-green-600 dark:text-green-400">R$ {personBalance.income.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-300">Despesas:</span>
-                    <span className="font-semibold text-red-600 dark:text-red-400">R$ {personBalance.expenses.toFixed(2)}</span>
-                  </div>
-                  <div className="border-t border-gray-200 dark:border-slate-600 pt-2 flex justify-between">
-                    <span className="text-gray-700 dark:text-gray-200 font-medium">Saldo:</span>
-                    <span
-                      className={`font-bold ${personBalance.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
-                    >
-                      R$ {personBalance.balance.toFixed(2)}
-                    </span>
-                  </div>
-                  {personBalance.toPay > 0 && (
-                    <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
-                      <div className="flex justify-between items-center">
-                        <span className="text-red-700 dark:text-red-400 font-medium">A pagar:</span>
-                        <span className="font-bold text-lg text-red-600 dark:text-red-400">R$ {personBalance.toPay.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="col-span-2 text-center text-sm text-gray-500 dark:text-gray-400">
-              Nenhuma pessoa real encontrada para este fechamento.
-            </div>
-          )}
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Balanço por pessoa — {selectedMonth}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Receitas e despesas já incluem o rateio da conta fixa (distribuidora). “A pagar” é o valor para equilibrar o mês entre vocês.
+          </p>
         </div>
 
-        {/* Resumo informativo */}
-        {Object.values(balanceByPerson).some((p) => p.toPay > 0) && (
-          <div className="border-2 border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/30 rounded-lg p-4">
-            <p className="font-semibold text-lg text-gray-800 dark:text-gray-100 mb-2">Resumo do Fechamento:</p>
-            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-              {Object.entries(balanceByPerson)
-                .filter(([, data]) => data.toPay > 0)
-                .map(([name, data]) => (
-                  <p key={name}>
-                    • <strong>{name}</strong> deve pagar:{' '}
-                    <strong className="text-red-600 dark:text-red-400">R$ {data.toPay.toFixed(2)}</strong>
-                  </p>
-                ))}
+        {balanceEntriesSorted.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50/80 dark:bg-red-950/30 px-3 py-2">
+                <p className="text-xs text-red-800 dark:text-red-300">Total a pagar (soma dos déficits)</p>
+                <p className="text-lg font-bold text-red-700 dark:text-red-400">{formatBRL(balanceTotals.totalToPay)}</p>
+              </div>
+              <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/80 dark:bg-emerald-950/30 px-3 py-2">
+                <p className="text-xs text-emerald-800 dark:text-emerald-300">Total a receber (soma dos créditos)</p>
+                <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatBRL(balanceTotals.totalToReceive)}</p>
+              </div>
             </div>
-          </div>
-        )}
 
-        {Object.values(balanceByPerson).every((p) => p.toPay === 0) && Object.values(balanceByPerson).length > 0 && (
-          <div className="border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/30 rounded-lg p-4">
-            <p className="font-semibold text-green-700 dark:text-green-400">✓ Todas as pessoas estão com saldo positivo! Nenhum pagamento necessário.</p>
+            <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200 dark:border-slate-700 mb-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-slate-700/60 text-left text-gray-600 dark:text-gray-300">
+                    <th className="px-3 py-2 font-medium">Pessoa</th>
+                    <th className="px-3 py-2 font-medium text-right">Receitas</th>
+                    <th className="px-3 py-2 font-medium text-right">Despesas</th>
+                    <th className="px-3 py-2 font-medium text-right">Saldo</th>
+                    <th className="px-3 py-2 font-medium text-right">A pagar</th>
+                    <th className="px-3 py-2 font-medium text-right">Crédito</th>
+                    <th className="px-3 py-2 font-medium">Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {balanceEntriesSorted.map(([personName, row]) => {
+                    const situation =
+                      row.toPay > 0 ? 'deve' : row.toReceive > 0 ? 'credito' : 'ok'
+                    return (
+                      <tr
+                        key={personName}
+                        className="border-t border-gray-100 dark:border-slate-600 hover:bg-gray-50/80 dark:hover:bg-slate-700/40"
+                      >
+                        <td className="px-3 py-2 font-semibold text-gray-800 dark:text-gray-100">{personName}</td>
+                        <td className="px-3 py-2 text-right text-green-700 dark:text-green-400 tabular-nums">
+                          {formatBRL(row.income)}
+                        </td>
+                        <td className="px-3 py-2 text-right text-red-700 dark:text-red-400 tabular-nums">
+                          {formatBRL(row.expenses)}
+                        </td>
+                        <td
+                          className={`px-3 py-2 text-right font-medium tabular-nums ${
+                            row.balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'
+                          }`}
+                        >
+                          {formatBRL(row.balance)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold text-red-700 dark:text-red-400 tabular-nums">
+                          {row.toPay > 0 ? formatBRL(row.toPay) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                          {row.toReceive > 0 ? formatBRL(row.toReceive) : '—'}
+                        </td>
+                        <td className="px-3 py-2">
+                          {situation === 'deve' && (
+                            <span className="inline-flex rounded-full bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 px-2 py-0.5 text-xs font-medium">
+                              Deve pagar
+                            </span>
+                          )}
+                          {situation === 'credito' && (
+                            <span className="inline-flex rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 px-2 py-0.5 text-xs font-medium">
+                              Em crédito
+                            </span>
+                          )}
+                          {situation === 'ok' && (
+                            <span className="inline-flex rounded-full bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-gray-200 px-2 py-0.5 text-xs font-medium">
+                              Equilibrado
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="md:hidden space-y-3 mb-4">
+              {balanceEntriesSorted.map(([personName, row]) => {
+                const maxFlow = Math.max(row.income, row.expenses, 1)
+                const incomePct = (row.income / maxFlow) * 100
+                const expensePct = (row.expenses / maxFlow) * 100
+                return (
+                  <div
+                    key={personName}
+                    className="border border-gray-200 dark:border-slate-700 rounded-xl p-4 bg-gray-50/80 dark:bg-slate-700/40"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <h4 className="font-semibold text-gray-800 dark:text-gray-100">{personName}</h4>
+                      {row.toPay > 0 && (
+                        <span className="shrink-0 rounded-full bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 px-2 py-0.5 text-xs font-medium">
+                          Deve pagar
+                        </span>
+                      )}
+                      {row.toPay === 0 && row.toReceive > 0 && (
+                        <span className="shrink-0 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 px-2 py-0.5 text-xs font-medium">
+                          Em crédito
+                        </span>
+                      )}
+                      {row.toPay === 0 && row.toReceive === 0 && (
+                        <span className="shrink-0 rounded-full bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-200 px-2 py-0.5 text-xs font-medium">
+                          Equilibrado
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-2 text-sm mb-3">
+                      <div>
+                        <div className="flex justify-between text-gray-600 dark:text-gray-400 mb-1">
+                          <span>Receitas</span>
+                          <span className="font-semibold text-green-700 dark:text-green-400 tabular-nums">
+                            {formatBRL(row.income)}
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-gray-200 dark:bg-slate-600 overflow-hidden">
+                          <div className="h-full rounded-full bg-green-500" style={{ width: `${incomePct}%` }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-gray-600 dark:text-gray-400 mb-1">
+                          <span>Despesas</span>
+                          <span className="font-semibold text-red-700 dark:text-red-400 tabular-nums">
+                            {formatBRL(row.expenses)}
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-gray-200 dark:bg-slate-600 overflow-hidden">
+                          <div className="h-full rounded-full bg-red-500" style={{ width: `${expensePct}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm border-t border-gray-200 dark:border-slate-600 pt-3">
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Saldo</p>
+                        <p
+                          className={`font-bold tabular-nums ${
+                            row.balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'
+                          }`}
+                        >
+                          {formatBRL(row.balance)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Acerto</p>
+                        {row.toPay > 0 ? (
+                          <p className="font-bold text-red-700 dark:text-red-400 tabular-nums">{formatBRL(row.toPay)} a pagar</p>
+                        ) : row.toReceive > 0 ? (
+                          <p className="font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">{formatBRL(row.toReceive)} a receber</p>
+                        ) : (
+                          <p className="font-medium text-gray-600 dark:text-gray-300">—</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {twoPersonSettlement && twoPersonSettlement.amount > 0 && (
+              <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/90 dark:bg-indigo-950/40 p-4 mb-4">
+                <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100 mb-1">Sugestão de acerto (2 pessoas)</p>
+                <p className="text-base text-indigo-950 dark:text-indigo-50">
+                  <strong>{twoPersonSettlement.from}</strong> transfere{' '}
+                  <strong className="tabular-nums">{formatBRL(twoPersonSettlement.amount)}</strong> para{' '}
+                  <strong>{twoPersonSettlement.to}</strong>.
+                </p>
+              </div>
+            )}
+
+            {Object.values(balanceByPerson).some((p) => p.toPay > 0) && (
+              <div className="border-2 border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/30 rounded-lg p-4">
+                <p className="font-semibold text-gray-800 dark:text-gray-100 mb-2">Resumo rápido</p>
+                <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                  {balanceEntriesSorted
+                    .filter(([, data]) => data.toPay > 0)
+                    .map(([name, data]) => (
+                      <li key={name}>
+                        <strong>{name}</strong>: pagar <strong className="text-red-600 dark:text-red-400 tabular-nums">{formatBRL(data.toPay)}</strong>
+                      </li>
+                    ))}
+                  {balanceEntriesSorted
+                    .filter(([, data]) => data.toReceive > 0)
+                    .map(([name, data]) => (
+                      <li key={`recv-${name}`}>
+                        <strong>{name}</strong>: receber <strong className="text-emerald-700 dark:text-emerald-400 tabular-nums">{formatBRL(data.toReceive)}</strong>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+
+            {Object.values(balanceByPerson).every((p) => p.toPay === 0) && Object.values(balanceByPerson).length > 0 && (
+              <div className="border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/30 rounded-lg p-4 mt-4">
+                <p className="font-semibold text-green-800 dark:text-green-300">
+                  Ninguém precisa pagar acerto neste mês (saldos equilibrados ou todos em crédito/zero).
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-6">
+            Nenhuma pessoa real ativa encontrada. Cadastre pessoas sem “distribuir valores” nas configurações.
           </div>
         )}
       </div>
