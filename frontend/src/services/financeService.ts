@@ -6,6 +6,7 @@ import type {
   CreditCardInvoicePayload,
   CreditCardInvoiceStatus,
   DepositPayload,
+  InstallmentGroupCommonFieldsPayload,
   Investment,
   InvestmentPayload,
   Person,
@@ -16,6 +17,7 @@ import type {
   SavingsGoalPayload,
   Transaction,
   TransactionPayload,
+  UpdateInstallmentsPayload,
 } from '../types/finance'
 import { httpClient } from './httpClient'
 
@@ -83,11 +85,36 @@ export const financeService = {
       method: 'DELETE',
     })
   },
-  updateInstallments(parentPurchaseId: number, payload: { newTotalValue?: number; newPurchaseDate?: string }): Promise<Transaction[]> {
+  updateInstallments(parentPurchaseId: number, payload: UpdateInstallmentsPayload): Promise<Transaction[]> {
     return httpClient<Transaction[]>(`/api/transactions/installments/${parentPurchaseId}`, {
       method: 'PUT',
       body: payload,
-    })
+    }).then((list) =>
+      list.map((tx) => {
+        const raw = tx as Transaction & { parentPurchaseId?: number }
+        return {
+          ...tx,
+          parentPurchase: tx.parentPurchase ?? raw.parentPurchaseId,
+        }
+      }),
+    )
+  },
+  updateInstallmentGroupCommonFields(
+    parentPurchaseId: number,
+    payload: InstallmentGroupCommonFieldsPayload,
+  ): Promise<Transaction[]> {
+    return httpClient<Transaction[]>(`/api/transactions/installments/${parentPurchaseId}/common-fields`, {
+      method: 'PATCH',
+      body: payload,
+    }).then((list) =>
+      list.map((tx) => {
+        const raw = tx as Transaction & { parentPurchaseId?: number }
+        return {
+          ...tx,
+          parentPurchase: tx.parentPurchase ?? raw.parentPurchaseId,
+        }
+      }),
+    )
   },
   anticipateInstallments(
     parentPurchaseId: number,

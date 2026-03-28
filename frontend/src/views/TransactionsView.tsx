@@ -62,7 +62,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   transactions,
 }) => {
   const {
-    state: { categories, creditCards, closedMonths, persons },
+    state: { categories, creditCards, closedMonths, persons, transactions: allTransactions },
     actions,
   } = useFinance()
 
@@ -92,8 +92,18 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [anticipateUseTargetCompetency, setAnticipateUseTargetCompetency] = useState(false)
   const [anticipateTargetCompetency, setAnticipateTargetCompetency] = useState('')
   const [anticipateSubmitting, setAnticipateSubmitting] = useState(false)
+  const [deleteChoiceTransaction, setDeleteChoiceTransaction] = useState<Transaction | null>(null)
+  const [editInstallmentsCount, setEditInstallmentsCount] = useState('')
 
   const isMonthClosed = closedMonths.includes(selectedMonth)
+
+  const editingTransaction = useMemo(
+    () => (editingTransactionId ? allTransactions.find((t) => t.id === editingTransactionId) : undefined),
+    [allTransactions, editingTransactionId],
+  )
+
+  const isEditingInstallmentGroup =
+    !!editingTransaction?.parentPurchase && editingTransaction.totalInstallments > 1
 
   const sortedInstallmentsModal = useMemo(() => {
     return [...installmentsList].sort((a, b) => a.installmentNumber - b.installmentNumber)
@@ -102,6 +112,13 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const canAnticipateCredit =
     sortedInstallmentsModal.length >= 2 &&
     sortedInstallmentsModal.every((t) => t.paymentMethod === 'Crédito')
+
+  const installmentsModalResizePreview = useMemo(() => {
+    if (!editInstallmentsPurchaseDate || !editInstallmentsTotalValue) return null
+    const n = parseInt(editInstallmentsCount, 10)
+    if (Number.isNaN(n) || n < 1) return null
+    return getInstallmentPreview(editInstallmentsPurchaseDate, Number(editInstallmentsTotalValue), n)
+  }, [editInstallmentsPurchaseDate, editInstallmentsTotalValue, editInstallmentsCount])
 
   const anticipateMergedPreview = useMemo(() => {
     const fromN = parseInt(anticipateFrom, 10)
@@ -158,23 +175,36 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     setSubmitting(true)
     try {
       if (editingTransactionId) {
-        const payload: TransactionPayload = {
-          date: form.date,
-          type: form.type,
-          paymentMethod: form.paymentMethod,
-          personId,
-          category: form.category,
-          description: form.description,
-          value: Number(form.value),
-          competency: form.competency,
-          creditCard: form.creditCard,
-          creditCardId: form.creditCard ? Number(form.creditCard) : undefined,
-          installments: Number(form.installments),
-          installmentNumber: 1,
-          totalInstallments: Number(form.installments),
-          parentPurchase: undefined,
+        const orig = allTransactions.find((t) => t.id === editingTransactionId)
+        const grouped = !!orig?.parentPurchase && orig.totalInstallments > 1
+        if (grouped && orig.parentPurchase) {
+          await actions.updateInstallmentGroupCommonFields(orig.parentPurchase, {
+            personId,
+            type: form.type,
+            paymentMethod: form.paymentMethod,
+            creditCardId: form.creditCard ? Number(form.creditCard) : undefined,
+            category: form.category,
+            description: form.description,
+          })
+        } else {
+          const payload: TransactionPayload = {
+            date: form.date,
+            type: form.type,
+            paymentMethod: form.paymentMethod,
+            personId,
+            category: form.category,
+            description: form.description,
+            value: Number(form.value),
+            competency: form.competency,
+            creditCard: form.creditCard,
+            creditCardId: form.creditCard ? Number(form.creditCard) : undefined,
+            installments: Number(form.installments),
+            installmentNumber: 1,
+            totalInstallments: Number(form.installments),
+            parentPurchase: undefined,
+          }
+          await actions.updateTransaction(editingTransactionId, payload)
         }
-        await actions.updateTransaction(editingTransactionId, payload)
       } else {
         const payloads: TransactionPayload[] = buildInstallments({
           date: form.date,
@@ -201,7 +231,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
   const handleEdit = (transaction: Transaction) => {
     if (isMonthClosed) return
-    
+    if (transaction.parentPurchase && transaction.totalInstallments > 1 && transaction.installmentNumber !== 1) {
+      return
+    }
+
     setEditingTransactionId(transaction.id)
     setForm({
       date: transaction.date,
@@ -640,6 +673,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                             setAnticipateTo(n >= 2 ? '2' : '1')
                             setAnticipateUseTargetCompetency(false)
                             setAnticipateTargetCompetency(sorted[0]?.competency ?? '')
+                            setEditInstallmentsCount(String(n))
                             setShowInstallmentsModal(true)
                           }}
                           disabled={isMonthClosed}
@@ -651,14 +685,34 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                       )}
                       <button
                         onClick={() => handleEdit(transaction)}
-                        disabled={isMonthClosed}
+                        disabled={
+                          isMonthClosed ||
+                          (!!transaction.parentPurchase &&
+                            transaction.totalInstallments > 1 &&
+                            transaction.installmentNumber !== 1)
+                        }
                         className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
-                        title="Editar lançamento"
+                        title={
+                          transaction.parentPurchase &&
+                          transaction.totalInstallments > 1 &&
+                          transaction.installmentNumber !== 1
+                            ? 'Edite pela 1ª parcela ou pelo ícone do pacote'
+                            : 'Editar lançamento'
+                        }
                       >
                         <Edit size={16} />
                       </button>
                       <button
-                        onClick={() => actions.deleteTransaction(transaction.id)}
+                        onClick={() => {
+                          if (
+                            transaction.parentPurchase &&
+                            transaction.totalInstallments > 1
+                          ) {
+                            setDeleteChoiceTransaction(transaction)
+                          } else if (confirm('Excluir este lançamento?')) {
+                            void actions.deleteTransaction(transaction.id)
+                          }
+                        }}
                         disabled={isMonthClosed}
                         className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
                         title="Excluir lançamento"
@@ -725,6 +779,11 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
               {editingTransactionId ? 'Editar lançamento' : 'Novo lançamento'}
             </h2>
+            {isEditingInstallmentGroup && (
+              <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+                Compra parcelada: valor, datas e quantidade de parcelas são alterados em &quot;Editar compra parcelada&quot; (ícone do pacote na 1ª parcela). Aqui você altera descrição, categoria, pessoa, tipo e pagamento para <strong>todas</strong> as parcelas.
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Data
@@ -732,7 +791,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   type="date"
                   value={form.date}
                   onChange={(event) => setForm({ ...form, date: event.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                  disabled={isEditingInstallmentGroup}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </label>
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -741,6 +801,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   <MonthYearSelector
                     value={form.competency}
                     onChange={(value) => setForm({ ...form, competency: value })}
+                    className={isEditingInstallmentGroup ? 'opacity-60 pointer-events-none' : ''}
                   />
                 </div>
               </label>
@@ -795,7 +856,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   step="0.01"
                   value={form.value}
                   onChange={(event) => setForm({ ...form, value: event.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                  disabled={isEditingInstallmentGroup}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </label>
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -838,11 +900,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                       step="1"
                       value={form.installments}
                       onChange={(event) => setForm({ ...form, installments: event.target.value })}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                      disabled={isEditingInstallmentGroup}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
                       placeholder="1"
                     />
                   </label>
-                  {installmentPreview && (
+                  {installmentPreview && !isEditingInstallmentGroup && (
                     <div className="md:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 shadow-sm">
                       <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-8 h-8 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center">
@@ -1161,7 +1224,32 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                     className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                   />
                 </label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
+                  Quantidade de parcelas
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={editInstallmentsCount}
+                    onChange={(e) => setEditInstallmentsCount(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Se for diferente da quantidade atual, as parcelas serão recriadas com o mesmo vínculo, mantendo o valor total (última parcela ajusta centavos).
+                  </p>
+                </label>
               </div>
+
+              {installmentsModalResizePreview && (
+                <div className="text-sm border border-blue-200 dark:border-blue-800 rounded-lg p-3 bg-blue-50/80 dark:bg-blue-950/30">
+                  <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">Preview após salvar</p>
+                  <p className="text-blue-800 dark:text-blue-200">
+                    {installmentsModalResizePreview.installments}x de R${' '}
+                    {installmentsModalResizePreview.installmentValue.toFixed(2)} — 1ª competência:{' '}
+                    {installmentsModalResizePreview.firstCompetency}
+                  </p>
+                </div>
+              )}
 
               <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -1347,10 +1435,19 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                 </button>
                 <button
                   onClick={async () => {
-                    await actions.updateInstallments(editingInstallmentsParentId, {
+                    const n = parseInt(editInstallmentsCount, 10)
+                    const payload: {
+                      newTotalValue?: number
+                      newPurchaseDate?: string
+                      newTotalInstallments?: number
+                    } = {
                       newTotalValue: editInstallmentsTotalValue ? Number(editInstallmentsTotalValue) : undefined,
                       newPurchaseDate: editInstallmentsPurchaseDate || undefined,
-                    })
+                    }
+                    if (!Number.isNaN(n) && n >= 1 && n !== sortedInstallmentsModal.length) {
+                      payload.newTotalInstallments = n
+                    }
+                    await actions.updateInstallments(editingInstallmentsParentId, payload)
                     setShowInstallmentsModal(false)
                     setEditingInstallmentsParentId(null)
                   }}
@@ -1360,6 +1457,53 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                   Salvar Alterações
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteChoiceTransaction?.parentPurchase && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDeleteChoiceTransaction(null)
+          }}
+        >
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-md border border-gray-200 dark:border-slate-700 shadow-xl space-y-4">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Excluir parcela</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Esta compra tem <strong>{deleteChoiceTransaction.totalInstallments}</strong> parcelas vinculadas. O que deseja excluir?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = deleteChoiceTransaction.id
+                  setDeleteChoiceTransaction(null)
+                  await actions.deleteTransaction(id)
+                }}
+                className="w-full px-4 py-2 rounded-lg border border-orange-300 dark:border-orange-700 text-orange-900 dark:text-orange-100 hover:bg-orange-50 dark:hover:bg-orange-950/40 font-medium"
+              >
+                Apenas esta parcela ({deleteChoiceTransaction.installmentNumber}/{deleteChoiceTransaction.totalInstallments})
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const pid = deleteChoiceTransaction.parentPurchase
+                  setDeleteChoiceTransaction(null)
+                  if (pid != null) await actions.deleteAllInstallments(pid)
+                }}
+                className="w-full px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:opacity-90"
+              >
+                Todas as {deleteChoiceTransaction.totalInstallments} parcelas desta compra
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteChoiceTransaction(null)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>

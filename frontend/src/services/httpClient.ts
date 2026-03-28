@@ -29,7 +29,7 @@ function getApiUrl(): string {
   return 'http://localhost:8080'
 }
 
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 interface HttpOptions<TBody> {
   method?: HttpMethod

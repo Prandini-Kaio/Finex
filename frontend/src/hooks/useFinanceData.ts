@@ -7,6 +7,7 @@ import type {
   CreditCardPayload,
   DepositPayload,
   FinanceState,
+  InstallmentGroupCommonFieldsPayload,
   Investment,
   InvestmentPayload,
   Person,
@@ -16,6 +17,7 @@ import type {
   SavingsGoalPayload,
   Transaction,
   TransactionPayload,
+  UpdateInstallmentsPayload,
 } from '../types/finance'
 
 const initialState: FinanceState = {
@@ -37,7 +39,11 @@ interface FinanceActions {
   deleteTransaction: (id: number) => Promise<void>
   getInstallments: (parentPurchaseId: number) => Promise<Transaction[]>
   deleteAllInstallments: (parentPurchaseId: number) => Promise<void>
-  updateInstallments: (parentPurchaseId: number, payload: { newTotalValue?: number; newPurchaseDate?: string }) => Promise<Transaction[]>
+  updateInstallments: (parentPurchaseId: number, payload: UpdateInstallmentsPayload) => Promise<Transaction[]>
+  updateInstallmentGroupCommonFields: (
+    parentPurchaseId: number,
+    payload: InstallmentGroupCommonFieldsPayload,
+  ) => Promise<Transaction[]>
   anticipateInstallments: (
     parentPurchaseId: number,
     payload: { fromInstallmentNumber: number; toInstallmentNumber: number; targetCompetency?: string },
@@ -155,11 +161,20 @@ export function useFinanceData() {
     await refresh()
   }, [refresh])
 
-  const updateInstallments = useCallback(async (parentPurchaseId: number, payload: { newTotalValue?: number; newPurchaseDate?: string }) => {
+  const updateInstallments = useCallback(async (parentPurchaseId: number, payload: UpdateInstallmentsPayload) => {
     const updated = await financeService.updateInstallments(parentPurchaseId, payload)
     await refresh()
     return updated
   }, [refresh])
+
+  const updateInstallmentGroupCommonFields = useCallback(
+    async (parentPurchaseId: number, payload: InstallmentGroupCommonFieldsPayload) => {
+      const updated = await financeService.updateInstallmentGroupCommonFields(parentPurchaseId, payload)
+      await refresh()
+      return updated
+    },
+    [refresh],
+  )
 
   const anticipateInstallments = useCallback(
     async (
@@ -327,6 +342,7 @@ export function useFinanceData() {
       getInstallments,
       deleteAllInstallments,
       updateInstallments,
+      updateInstallmentGroupCommonFields,
       anticipateInstallments,
       addBudget,
       deleteBudget,
@@ -362,6 +378,7 @@ export function useFinanceData() {
       getInstallments,
       deleteAllInstallments,
       updateInstallments,
+      updateInstallmentGroupCommonFields,
       anticipateInstallments,
       addBudget,
       deleteBudget,

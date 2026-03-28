@@ -4,11 +4,13 @@ import com.prandini.financecontroller.domain.model.CreditCard;
 import com.prandini.financecontroller.domain.model.Person;
 import com.prandini.financecontroller.domain.model.Transaction;
 import com.prandini.financecontroller.domain.model.enums.PaymentMethod;
+import com.prandini.financecontroller.domain.model.enums.TransactionType;
 import com.prandini.financecontroller.domain.repository.ClosedMonthRepository;
 import com.prandini.financecontroller.domain.repository.CreditCardRepository;
 import com.prandini.financecontroller.domain.repository.PersonRepository;
 import com.prandini.financecontroller.domain.repository.TransactionRepository;
 import com.prandini.financecontroller.web.dto.AnticipateInstallmentsRequest;
+import com.prandini.financecontroller.web.dto.InstallmentGroupCommonFieldsRequest;
 import com.prandini.financecontroller.web.dto.TransactionRequest;
 import com.prandini.financecontroller.web.dto.UpdateInstallmentsRequest;
 import com.prandini.financecontroller.web.exception.BadRequestException;
@@ -133,40 +135,177 @@ public class TransactionService {
     }
 
     @Transactional
+    public List<Transaction> updateInstallmentGroupCommonFields(
+            Long parentPurchaseId,
+            InstallmentGroupCommonFieldsRequest req) {
+        if (parentPurchaseId == null) {
+            throw new IllegalArgumentException("parentPurchaseId não pode ser nulo");
+        }
+        List<Transaction> list = new ArrayList<>(transactionRepository.findByParentPurchaseId(parentPurchaseId));
+        if (list.isEmpty()) {
+            throw new ResourceNotFoundException("Nenhuma parcela encontrada para parentPurchaseId: " + parentPurchaseId);
+        }
+        Person person = personRepository.findById(req.personId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + req.personId()));
+        CreditCard card = null;
+        if (req.creditCardId() != null) {
+            card = creditCardRepository.findById(req.creditCardId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado: " + req.creditCardId()));
+        }
+        for (Transaction t : list) {
+            t.setPerson(person);
+            t.setType(req.type());
+            t.setPaymentMethod(req.paymentMethod());
+            t.setCategory(req.category());
+            t.setDescription(req.description());
+            t.setCreditCard(card);
+            transactionRepository.save(t);
+        }
+        return transactionRepository.findByParentPurchaseId(parentPurchaseId);
+    }
+
+    @Transactional
     public List<Transaction> updateInstallments(Long parentPurchaseId, UpdateInstallmentsRequest request) {
-        List<Transaction> installments = transactionRepository.findByParentPurchaseId(parentPurchaseId);
+        List<Transaction> installments = new ArrayList<>(transactionRepository.findByParentPurchaseId(parentPurchaseId));
         if (installments.isEmpty()) {
             throw new ResourceNotFoundException("Nenhuma parcela encontrada para parentPurchaseId: " + parentPurchaseId);
         }
+        installments.sort(Comparator.comparing(Transaction::getInstallmentNumber));
+        for (int i = 0; i < installments.size(); i++) {
+            Integer num = installments.get(i).getInstallmentNumber();
+            if (num == null || num != i + 1) {
+                throw new BadRequestException("Parcelas com numeração inconsistente");
+            }
+        }
 
-        Transaction firstInstallment = installments.get(0);
+        Transaction firstInstallment = installments.stream()
+                .filter(t -> t.getInstallmentNumber() != null && t.getInstallmentNumber() == 1)
+                .findFirst()
+                .orElse(installments.getFirst());
+
+        Integer newN = request.newTotalInstallments();
+        if (newN != null && !newN.equals(installments.size())) {
+            return replaceInstallmentGroupWithNewCount(parentPurchaseId, installments, firstInstallment, request, newN);
+        }
+
         int totalInstallments = installments.size();
-        
-        BigDecimal newTotalValue = request.newTotalValue() != null 
-            ? request.newTotalValue() 
-            : installments.stream()
-                .map(Transaction::getValue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        LocalDate newPurchaseDate = request.newPurchaseDate() != null 
-            ? request.newPurchaseDate() 
-            : firstInstallment.getDate();
 
-        BigDecimal installmentValue = newTotalValue.divide(BigDecimal.valueOf(totalInstallments), 2, RoundingMode.HALF_UP);
+        BigDecimal newTotalValue = request.newTotalValue() != null
+                ? request.newTotalValue()
+                : installments.stream()
+                        .map(Transaction::getValue)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        LocalDate newPurchaseDate = request.newPurchaseDate() != null
+                ? request.newPurchaseDate()
+                : firstInstallment.getDate();
+
+        List<BigDecimal> parts = splitTotalAcrossInstallments(newTotalValue, totalInstallments);
 
         for (int i = 0; i < installments.size(); i++) {
             Transaction installment = installments.get(i);
             LocalDate installmentDate = newPurchaseDate.plusMonths(i);
-            String competency = String.format("%02d/%d", installmentDate.getMonthValue(), installmentDate.getYear());
-            
-            installment.setValue(installmentValue);
+            String competency = formatCompetency(installmentDate);
+            assertCompetencyOpen(installment.getCompetency());
+            assertCompetencyOpen(competency);
+            installment.setValue(parts.get(i));
             installment.setDate(installmentDate);
             installment.setCompetency(competency);
-            
             transactionRepository.save(installment);
         }
 
         return transactionRepository.findByParentPurchaseId(parentPurchaseId);
+    }
+
+    private List<Transaction> replaceInstallmentGroupWithNewCount(
+            Long parentPurchaseId,
+            List<Transaction> sortedOld,
+            Transaction templateRow,
+            UpdateInstallmentsRequest request,
+            int newCount) {
+        if (newCount < 1) {
+            throw new BadRequestException("Quantidade de parcelas deve ser pelo menos 1");
+        }
+
+        for (Transaction t : sortedOld) {
+            assertCompetencyOpen(t.getCompetency());
+        }
+
+        BigDecimal total = request.newTotalValue() != null
+                ? request.newTotalValue()
+                : sortedOld.stream().map(Transaction::getValue).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        LocalDate baseDate = request.newPurchaseDate() != null
+                ? request.newPurchaseDate()
+                : templateRow.getDate();
+
+        List<BigDecimal> values = splitTotalAcrossInstallments(total, newCount);
+        for (int i = 0; i < newCount; i++) {
+            assertCompetencyOpen(formatCompetency(baseDate.plusMonths(i)));
+        }
+
+        Long personId = templateRow.getPerson().getId();
+        TransactionType type = templateRow.getType();
+        PaymentMethod paymentMethod = templateRow.getPaymentMethod();
+        String category = templateRow.getCategory();
+        String description = templateRow.getDescription();
+        Long creditCardId = templateRow.getCreditCard() != null ? templateRow.getCreditCard().getId() : null;
+
+        transactionRepository.deleteByParentPurchaseId(parentPurchaseId);
+
+        Person person = personRepository.findById(personId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + personId));
+        CreditCard card = null;
+        if (creditCardId != null) {
+            card = creditCardRepository.findById(creditCardId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado: " + creditCardId));
+        }
+
+        for (int i = 0; i < newCount; i++) {
+            LocalDate d = baseDate.plusMonths(i);
+            String competency = formatCompetency(d);
+            Transaction tx = Transaction.builder()
+                    .date(d)
+                    .type(type)
+                    .paymentMethod(paymentMethod)
+                    .person(person)
+                    .category(category)
+                    .description(description)
+                    .value(values.get(i))
+                    .competency(competency)
+                    .creditCard(card)
+                    .installments(newCount)
+                    .installmentNumber(i + 1)
+                    .totalInstallments(newCount)
+                    .parentPurchaseId(parentPurchaseId)
+                    .build();
+            transactionRepository.save(tx);
+        }
+
+        return transactionRepository.findByParentPurchaseId(parentPurchaseId);
+    }
+
+    private static List<BigDecimal> splitTotalAcrossInstallments(BigDecimal total, int n) {
+        if (n < 1) {
+            throw new BadRequestException("Quantidade de parcelas deve ser pelo menos 1");
+        }
+        BigDecimal scaled = total != null ? total.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        if (scaled.signum() < 0) {
+            throw new BadRequestException("Valor total inválido");
+        }
+        List<BigDecimal> parts = new ArrayList<>();
+        if (n == 1) {
+            parts.add(scaled);
+            return parts;
+        }
+        BigDecimal each = scaled.divide(BigDecimal.valueOf(n), 2, RoundingMode.HALF_UP);
+        BigDecimal allocated = BigDecimal.ZERO;
+        for (int i = 0; i < n - 1; i++) {
+            parts.add(each);
+            allocated = allocated.add(each);
+        }
+        parts.add(scaled.subtract(allocated).setScale(2, RoundingMode.HALF_UP));
+        return parts;
     }
 
     @Transactional

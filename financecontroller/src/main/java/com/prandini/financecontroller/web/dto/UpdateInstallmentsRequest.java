@@ -5,6 +5,7 @@ import java.time.LocalDate;
 
 public record UpdateInstallmentsRequest(
         BigDecimal newTotalValue,
-        LocalDate newPurchaseDate
+        LocalDate newPurchaseDate,
+        Integer newTotalInstallments
 ) {
 }

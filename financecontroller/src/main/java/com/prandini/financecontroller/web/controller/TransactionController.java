@@ -4,6 +4,7 @@ import com.prandini.financecontroller.domain.service.TransactionImportService;
 import com.prandini.financecontroller.domain.service.TransactionService;
 import com.prandini.financecontroller.web.dto.ImportResponse;
 import com.prandini.financecontroller.web.dto.AnticipateInstallmentsRequest;
+import com.prandini.financecontroller.web.dto.InstallmentGroupCommonFieldsRequest;
 import com.prandini.financecontroller.web.dto.TransactionRequest;
 import com.prandini.financecontroller.web.dto.TransactionResponse;
 import com.prandini.financecontroller.web.dto.UpdateInstallmentsRequest;
@@ -86,6 +87,15 @@ public class TransactionController {
             @PathVariable Long parentPurchaseId,
             @RequestBody UpdateInstallmentsRequest request) {
         return transactionService.updateInstallments(parentPurchaseId, request).stream()
+                .map(FinanceMapper::toResponse)
+                .toList();
+    }
+
+    @PatchMapping("/installments/{parentPurchaseId}/common-fields")
+    public List<TransactionResponse> updateInstallmentGroupCommonFields(
+            @PathVariable Long parentPurchaseId,
+            @RequestBody InstallmentGroupCommonFieldsRequest request) {
+        return transactionService.updateInstallmentGroupCommonFields(parentPurchaseId, request).stream()
                 .map(FinanceMapper::toResponse)
                 .toList();
     }

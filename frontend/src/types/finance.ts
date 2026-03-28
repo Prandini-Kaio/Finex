@@ -31,6 +31,21 @@ export interface Transaction {
 
 export type TransactionPayload = Omit<Transaction, 'id' | 'person'> & { personId: number }
 
+export type InstallmentGroupCommonFieldsPayload = {
+  personId: number
+  type: TransactionType
+  paymentMethod: PaymentMethod
+  creditCardId?: number
+  category: string
+  description: string
+}
+
+export type UpdateInstallmentsPayload = {
+  newTotalValue?: number
+  newPurchaseDate?: string
+  newTotalInstallments?: number
+}
+
 export type BudgetType = 'VALUE' | 'PERCENTAGE'
 
 export interface Budget {
