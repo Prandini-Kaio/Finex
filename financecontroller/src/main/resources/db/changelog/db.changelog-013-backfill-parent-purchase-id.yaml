@@ -1,0 +1,78 @@
+databaseChangeLog:
+  - changeSet:
+      id: 013-backfill-parent-purchase-id-installments
+      author: financecontroller
+      comment: Preenche parent_purchase_id em parcelas antigas (NULL) agrupando por pessoa, cartão, descrição, categoria e total de parcelas, quando existe exatamente uma linha por número 1..N.
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              WITH candidates AS (
+                SELECT
+                  id,
+                  person_id,
+                  credit_card_id,
+                  COALESCE(trim(both FROM description), '') AS desc_norm,
+                  COALESCE(trim(both FROM category), '') AS cat_norm,
+                  installment_number,
+                  total_installments,
+                  installments
+                FROM transactions
+                WHERE parent_purchase_id IS NULL
+                  AND COALESCE(total_installments, 1) > 1
+                  AND installment_number IS NOT NULL
+                  AND payment_method = 'CREDITO'
+              ),
+              group_keys AS (
+                SELECT
+                  person_id,
+                  COALESCE(credit_card_id, -1) AS cc_key,
+                  desc_norm,
+                  cat_norm,
+                  total_installments AS ti,
+                  COUNT(*) AS cnt,
+                  COUNT(DISTINCT installment_number) AS dcnt,
+                  MIN(installment_number) AS nmin,
+                  MAX(installment_number) AS nmax,
+                  SUM(installment_number) AS sum_inst
+                FROM candidates
+                GROUP BY person_id, COALESCE(credit_card_id, -1), desc_norm, cat_norm, total_installments
+                HAVING COUNT(*) = total_installments
+                  AND COUNT(DISTINCT installment_number) = total_installments
+                  AND MIN(installment_number) = 1
+                  AND MAX(installment_number) = total_installments
+                  AND SUM(installment_number) = total_installments * (total_installments + 1) / 2
+                  AND BOOL_AND(COALESCE(installments, total_installments) = total_installments)
+              ),
+              base AS (
+                SELECT COALESCE(MAX(parent_purchase_id), 0)::bigint AS mx FROM transactions
+              ),
+              to_assign AS (
+                SELECT
+                  c.id,
+                  b.mx + DENSE_RANK() OVER (
+                    ORDER BY c.person_id, c.cc_key, c.desc_norm, c.cat_norm, c.ti
+                  ) AS new_parent_id
+                FROM (
+                  SELECT
+                    cand.id,
+                    cand.person_id,
+                    COALESCE(cand.credit_card_id, -1) AS cc_key,
+                    cand.desc_norm,
+                    cand.cat_norm,
+                    cand.total_installments AS ti
+                  FROM candidates cand
+                  INNER JOIN group_keys g
+                    ON cand.person_id = g.person_id
+                    AND COALESCE(cand.credit_card_id, -1) = g.cc_key
+                    AND cand.desc_norm = g.desc_norm
+                    AND cand.cat_norm = g.cat_norm
+                    AND cand.total_installments = g.ti
+                ) c
+                CROSS JOIN base b
+              )
+              UPDATE transactions t
+              SET parent_purchase_id = a.new_parent_id
+              FROM to_assign a
+              WHERE t.id = a.id;

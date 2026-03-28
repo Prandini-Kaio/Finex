@@ -87,8 +87,32 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [installmentsList, setInstallmentsList] = useState<Transaction[]>([])
   const [editInstallmentsTotalValue, setEditInstallmentsTotalValue] = useState('')
   const [editInstallmentsPurchaseDate, setEditInstallmentsPurchaseDate] = useState('')
+  const [anticipateFrom, setAnticipateFrom] = useState('1')
+  const [anticipateTo, setAnticipateTo] = useState('2')
+  const [anticipateUseTargetCompetency, setAnticipateUseTargetCompetency] = useState(false)
+  const [anticipateTargetCompetency, setAnticipateTargetCompetency] = useState('')
+  const [anticipateSubmitting, setAnticipateSubmitting] = useState(false)
 
   const isMonthClosed = closedMonths.includes(selectedMonth)
+
+  const sortedInstallmentsModal = useMemo(() => {
+    return [...installmentsList].sort((a, b) => a.installmentNumber - b.installmentNumber)
+  }, [installmentsList])
+
+  const canAnticipateCredit =
+    sortedInstallmentsModal.length >= 2 &&
+    sortedInstallmentsModal.every((t) => t.paymentMethod === 'Crédito')
+
+  const anticipateMergedPreview = useMemo(() => {
+    const fromN = parseInt(anticipateFrom, 10)
+    const toN = parseInt(anticipateTo, 10)
+    if (Number.isNaN(fromN) || Number.isNaN(toN) || fromN >= toN) return null
+    let sum = 0
+    for (const t of sortedInstallmentsModal) {
+      if (t.installmentNumber >= fromN && t.installmentNumber <= toN) sum += t.value
+    }
+    return sum
+  }, [anticipateFrom, anticipateTo, sortedInstallmentsModal])
 
   const installmentPreview = useMemo(() => {
     if (
@@ -610,6 +634,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                             setEditInstallmentsTotalValue(totalValue.toFixed(2))
                             setEditInstallmentsPurchaseDate(transaction.date)
                             setEditingInstallmentsParentId(transaction.parentPurchase)
+                            const sorted = [...installments].sort((a, b) => a.installmentNumber - b.installmentNumber)
+                            const n = sorted.length
+                            setAnticipateFrom('1')
+                            setAnticipateTo(n >= 2 ? '2' : '1')
+                            setAnticipateUseTargetCompetency(false)
+                            setAnticipateTargetCompetency(sorted[0]?.competency ?? '')
                             setShowInstallmentsModal(true)
                           }}
                           disabled={isMonthClosed}
@@ -1135,14 +1165,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
               <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                  Parcelas ({installmentsList.length}x)
+                  Parcelas ({sortedInstallmentsModal.length}x)
                 </h3>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {installmentsList
-                    .sort((a, b) => a.installmentNumber - b.installmentNumber)
-                    .map((installment) => {
+                  {sortedInstallmentsModal.map((installment) => {
                       const newValue = editInstallmentsTotalValue 
-                        ? (Number(editInstallmentsTotalValue) / installmentsList.length).toFixed(2)
+                        ? (Number(editInstallmentsTotalValue) / sortedInstallmentsModal.length).toFixed(2)
                         : installment.value.toFixed(2)
                       const purchaseDate = editInstallmentsPurchaseDate ? new Date(editInstallmentsPurchaseDate) : new Date(installment.date)
                       const installmentDate = new Date(purchaseDate)
@@ -1157,7 +1185,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                         >
                           <div className="flex items-center gap-3">
                             <span className="font-medium text-gray-700 dark:text-gray-300">
-                              {installment.installmentNumber}/{installmentsList.length}
+                              {installment.installmentNumber}/{sortedInstallmentsModal.length}
                             </span>
                             <span className="text-gray-600 dark:text-gray-400">
                               {installmentDate.toLocaleDateString('pt-BR')}
@@ -1174,6 +1202,125 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                     })}
                 </div>
               </div>
+
+              {canAnticipateCredit && (
+                <div className="border border-amber-200 dark:border-amber-800 rounded-lg p-4 bg-amber-50/80 dark:bg-amber-950/30 space-y-3">
+                  <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-100">Antecipar parcelas</h3>
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    Funde um intervalo contíguo em uma única parcela na posição &quot;De&quot;, soma os valores e renumeria o restante.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      De (parcela)
+                      <select
+                        value={anticipateFrom}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          setAnticipateFrom(v)
+                          const toN = parseInt(anticipateTo, 10)
+                          if (!Number.isNaN(toN) && toN <= parseInt(v, 10)) {
+                            setAnticipateTo(String(Math.min(parseInt(v, 10) + 1, sortedInstallmentsModal.length)))
+                          }
+                        }}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                      >
+                        {sortedInstallmentsModal.slice(0, -1).map((t) => (
+                          <option key={t.id} value={String(t.installmentNumber)}>
+                            {t.installmentNumber}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Até (parcela)
+                      <select
+                        value={anticipateTo}
+                        onChange={(e) => setAnticipateTo(e.target.value)}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                      >
+                        {sortedInstallmentsModal
+                          .filter((t) => t.installmentNumber > parseInt(anticipateFrom, 10))
+                          .map((t) => (
+                            <option key={t.id} value={String(t.installmentNumber)}>
+                              {t.installmentNumber}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  </div>
+                  {anticipateMergedPreview != null && (
+                    <p className="text-sm text-gray-800 dark:text-gray-200">
+                      Valor fundido: <strong>R$ {anticipateMergedPreview.toFixed(2)}</strong>
+                    </p>
+                  )}
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={anticipateUseTargetCompetency}
+                      onChange={(e) => setAnticipateUseTargetCompetency(e.target.checked)}
+                      className="rounded border-gray-300 dark:border-slate-600"
+                    />
+                    Definir competência da parcela fundida (opcional)
+                  </label>
+                  {anticipateUseTargetCompetency && (
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Competência (MM/aaaa)</p>
+                      <MonthYearSelector
+                        value={anticipateTargetCompetency}
+                        onChange={setAnticipateTargetCompetency}
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!editingInstallmentsParentId) return
+                      const fromN = parseInt(anticipateFrom, 10)
+                      const toN = parseInt(anticipateTo, 10)
+                      if (fromN >= toN) return
+                      if (
+                        !confirm(
+                          `Antecipar parcelas ${fromN} a ${toN}? As parcelas intermediárias serão removidas e os valores fundidos na parcela ${fromN}.`,
+                        )
+                      ) {
+                        return
+                      }
+                      try {
+                        setAnticipateSubmitting(true)
+                        await actions.anticipateInstallments(editingInstallmentsParentId, {
+                          fromInstallmentNumber: fromN,
+                          toInstallmentNumber: toN,
+                          ...(anticipateUseTargetCompetency && anticipateTargetCompetency.trim()
+                            ? { targetCompetency: anticipateTargetCompetency.trim() }
+                            : {}),
+                        })
+                        const updated = await actions.getInstallments(editingInstallmentsParentId)
+                        setInstallmentsList(updated)
+                        setEditInstallmentsTotalValue(updated.reduce((s, t) => s + t.value, 0).toFixed(2))
+                        const sorted = [...updated].sort((a, b) => a.installmentNumber - b.installmentNumber)
+                        const n = sorted.length
+                        setAnticipateFrom('1')
+                        setAnticipateTo(n >= 2 ? '2' : '1')
+                      } catch (err) {
+                        console.error(err)
+                        const raw = err instanceof Error ? err.message : ''
+                        try {
+                          const j = JSON.parse(raw) as { message?: string }
+                          alert((j.message ?? raw) || 'Falha ao antecipar parcelas.')
+                        } catch {
+                          alert(raw || 'Falha ao antecipar parcelas.')
+                        }
+                      } finally {
+                        setAnticipateSubmitting(false)
+                      }
+                    }}
+                    disabled={isMonthClosed || anticipateSubmitting || parseInt(anticipateFrom, 10) >= parseInt(anticipateTo, 10)}
+                    className="w-full px-4 py-2 bg-amber-600 dark:bg-amber-700 text-white rounded-lg font-semibold hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {anticipateSubmitting ? 'Aplicando…' : 'Aplicar antecipação'}
+                  </button>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-2">
                 <button

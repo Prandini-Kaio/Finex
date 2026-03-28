@@ -38,6 +38,10 @@ interface FinanceActions {
   getInstallments: (parentPurchaseId: number) => Promise<Transaction[]>
   deleteAllInstallments: (parentPurchaseId: number) => Promise<void>
   updateInstallments: (parentPurchaseId: number, payload: { newTotalValue?: number; newPurchaseDate?: string }) => Promise<Transaction[]>
+  anticipateInstallments: (
+    parentPurchaseId: number,
+    payload: { fromInstallmentNumber: number; toInstallmentNumber: number; targetCompetency?: string },
+  ) => Promise<Transaction[]>
   addBudget: (payload: BudgetPayload) => Promise<Budget>
   deleteBudget: (id: number) => Promise<void>
   saveCategories: (categories: string[]) => Promise<void>
@@ -85,10 +89,14 @@ export function useFinanceData() {
         financeService.getPersons(),
       ])
 
-      const mappedTransactions = transactions.map((tx) => ({
-        ...tx,
-        creditCard: tx.creditCardId ? String(tx.creditCardId) : tx.creditCard,
-      }))
+      const mappedTransactions = transactions.map((tx) => {
+        const raw = tx as Transaction & { parentPurchaseId?: number }
+        return {
+          ...tx,
+          creditCard: tx.creditCardId ? String(tx.creditCardId) : tx.creditCard,
+          parentPurchase: tx.parentPurchase ?? raw.parentPurchaseId,
+        }
+      })
 
       setState({
         transactions: mappedTransactions,
@@ -152,6 +160,18 @@ export function useFinanceData() {
     await refresh()
     return updated
   }, [refresh])
+
+  const anticipateInstallments = useCallback(
+    async (
+      parentPurchaseId: number,
+      payload: { fromInstallmentNumber: number; toInstallmentNumber: number; targetCompetency?: string },
+    ) => {
+      const updated = await financeService.anticipateInstallments(parentPurchaseId, payload)
+      await refresh()
+      return updated
+    },
+    [refresh],
+  )
 
   const addBudget = useCallback(async (payload: BudgetPayload) => {
     const created = await financeService.createBudget(payload)
@@ -307,6 +327,7 @@ export function useFinanceData() {
       getInstallments,
       deleteAllInstallments,
       updateInstallments,
+      anticipateInstallments,
       addBudget,
       deleteBudget,
       saveCategories,
@@ -341,6 +362,7 @@ export function useFinanceData() {
       getInstallments,
       deleteAllInstallments,
       updateInstallments,
+      anticipateInstallments,
       addBudget,
       deleteBudget,
       saveCategories,

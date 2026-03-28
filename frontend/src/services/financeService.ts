@@ -19,6 +19,33 @@ import type {
 } from '../types/finance'
 import { httpClient } from './httpClient'
 
+function transactionPayloadToApiBody(payload: TransactionPayload): Record<string, unknown> {
+  const raw = payload as TransactionPayload & { parentPurchaseId?: number }
+  const parentPurchaseId = raw.parentPurchase ?? raw.parentPurchaseId
+  const creditCardId =
+    payload.creditCardId ?? (payload.creditCard ? Number(payload.creditCard) : undefined)
+  const body: Record<string, unknown> = {
+    date: payload.date,
+    type: payload.type,
+    paymentMethod: payload.paymentMethod,
+    personId: payload.personId,
+    category: payload.category,
+    description: payload.description,
+    value: payload.value,
+    competency: payload.competency,
+    installments: payload.installments,
+    installmentNumber: payload.installmentNumber,
+    totalInstallments: payload.totalInstallments,
+  }
+  if (creditCardId != null && !Number.isNaN(creditCardId)) {
+    body.creditCardId = creditCardId
+  }
+  if (parentPurchaseId != null && !Number.isNaN(Number(parentPurchaseId))) {
+    body.parentPurchaseId = Number(parentPurchaseId)
+  }
+  return body
+}
+
 export const financeService = {
   getTransactions(): Promise<Transaction[]> {
     return httpClient<Transaction[]>('/api/transactions')
@@ -26,13 +53,13 @@ export const financeService = {
   createTransaction(payload: TransactionPayload): Promise<Transaction> {
     return httpClient<Transaction>('/api/transactions', {
       method: 'POST',
-      body: payload,
+      body: transactionPayloadToApiBody(payload),
     })
   },
   updateTransaction(id: number, payload: TransactionPayload): Promise<Transaction> {
     return httpClient<Transaction>(`/api/transactions/${id}`, {
       method: 'PUT',
-      body: payload,
+      body: transactionPayloadToApiBody(payload),
     })
   },
   deleteTransaction(id: number): Promise<void> {
@@ -41,7 +68,15 @@ export const financeService = {
     })
   },
   getInstallments(parentPurchaseId: number): Promise<Transaction[]> {
-    return httpClient<Transaction[]>(`/api/transactions/installments/${parentPurchaseId}`)
+    return httpClient<Transaction[]>(`/api/transactions/installments/${parentPurchaseId}`).then((list) =>
+      list.map((tx) => {
+        const raw = tx as Transaction & { parentPurchaseId?: number }
+        return {
+          ...tx,
+          parentPurchase: tx.parentPurchase ?? raw.parentPurchaseId,
+        }
+      }),
+    )
   },
   deleteAllInstallments(parentPurchaseId: number): Promise<void> {
     return httpClient<void>(`/api/transactions/installments/${parentPurchaseId}`, {
@@ -51,6 +86,15 @@ export const financeService = {
   updateInstallments(parentPurchaseId: number, payload: { newTotalValue?: number; newPurchaseDate?: string }): Promise<Transaction[]> {
     return httpClient<Transaction[]>(`/api/transactions/installments/${parentPurchaseId}`, {
       method: 'PUT',
+      body: payload,
+    })
+  },
+  anticipateInstallments(
+    parentPurchaseId: number,
+    payload: { fromInstallmentNumber: number; toInstallmentNumber: number; targetCompetency?: string },
+  ): Promise<Transaction[]> {
+    return httpClient<Transaction[]>(`/api/transactions/installments/${parentPurchaseId}/anticipate`, {
+      method: 'POST',
       body: payload,
     })
   },

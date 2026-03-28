@@ -21,4 +21,6 @@ databaseChangeLog:
       file: classpath:db/changelog/db.changelog-011-add-observacao-to-deposits.yaml
   - include:
       file: classpath:db/changelog/db.changelog-012-add-percentage-to-person-split-relationship.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-013-backfill-parent-purchase-id.yaml
 
