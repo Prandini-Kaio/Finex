@@ -6,6 +6,7 @@ import type {
   CreditCardInvoicePayload,
   CreditCardInvoiceStatus,
   DepositPayload,
+  FinanceFilters,
   InstallmentGroupCommonFieldsPayload,
   Investment,
   InvestmentPayload,
@@ -19,7 +20,36 @@ import type {
   TransactionPayload,
   UpdateInstallmentsPayload,
 } from '../types/finance'
+import { CREDIT_CARD_NONE_VALUE } from '../types/finance'
 import { httpClient } from './httpClient'
+
+function mapTransactionResponse(tx: Transaction): Transaction {
+  const raw = tx as Transaction & { parentPurchaseId?: number }
+  return {
+    ...tx,
+    creditCard: tx.creditCardId ? String(tx.creditCardId) : tx.creditCard,
+    parentPurchase: tx.parentPurchase ?? raw.parentPurchaseId,
+  }
+}
+
+function buildTransactionFilterQuery(filters: FinanceFilters): string {
+  const params = new URLSearchParams()
+
+  filters.competencies.forEach((competency) => params.append('competency', competency))
+  filters.persons.forEach((person) => params.append('person', person))
+  filters.categories.forEach((category) => params.append('category', category))
+  filters.paymentMethods.forEach((method) => params.append('paymentMethod', method))
+
+  const cardIds = filters.creditCards.filter((id) => id !== CREDIT_CARD_NONE_VALUE)
+  cardIds.forEach((id) => params.append('creditCardId', id))
+
+  if (filters.creditCards.includes(CREDIT_CARD_NONE_VALUE)) {
+    params.append('withoutCreditCard', 'true')
+  }
+
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
 
 function transactionPayloadToApiBody(payload: TransactionPayload): Record<string, unknown> {
   const raw = payload as TransactionPayload & { parentPurchaseId?: number }
@@ -49,8 +79,9 @@ function transactionPayloadToApiBody(payload: TransactionPayload): Record<string
 }
 
 export const financeService = {
-  getTransactions(): Promise<Transaction[]> {
-    return httpClient<Transaction[]>('/api/transactions')
+  getTransactions(filters?: FinanceFilters): Promise<Transaction[]> {
+    const query = filters ? buildTransactionFilterQuery(filters) : ''
+    return httpClient<Transaction[]>(`/api/transactions${query}`).then((list) => list.map(mapTransactionResponse))
   },
   createTransaction(payload: TransactionPayload): Promise<Transaction> {
     return httpClient<Transaction>('/api/transactions', {

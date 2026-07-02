@@ -68,7 +68,6 @@ const ViewContainer: React.FC = () => {
             onFiltersChange={setFilters}
             selectedMonth={selectedMonth}
             onMonthChange={setSelectedMonth}
-            transactions={filteredTransactions}
           />
         )
       case 'recurring':

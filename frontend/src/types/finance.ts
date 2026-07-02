@@ -116,11 +116,14 @@ export interface DepositPayload {
 }
 
 export interface FinanceFilters {
-  person: string | 'Todos'
-  category: string | 'Todas'
-  paymentType: PaymentMethod | 'Todos'
-  creditCard: string | 'Todos'
+  persons: string[]
+  categories: string[]
+  paymentMethods: PaymentMethod[]
+  creditCards: string[]
+  competencies: string[]
 }
+
+export const CREDIT_CARD_NONE_VALUE = '__none__'
 
 export interface SimulationResult {
   originalValue: number

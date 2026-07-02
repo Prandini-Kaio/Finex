@@ -11,8 +11,10 @@ import com.prandini.financecontroller.domain.repository.PersonRepository;
 import com.prandini.financecontroller.domain.repository.TransactionRepository;
 import com.prandini.financecontroller.web.dto.AnticipateInstallmentsRequest;
 import com.prandini.financecontroller.web.dto.InstallmentGroupCommonFieldsRequest;
+import com.prandini.financecontroller.web.dto.TransactionFilterCriteria;
 import com.prandini.financecontroller.web.dto.TransactionRequest;
 import com.prandini.financecontroller.web.dto.UpdateInstallmentsRequest;
+import com.prandini.financecontroller.domain.repository.TransactionSpecifications;
 import com.prandini.financecontroller.web.exception.BadRequestException;
 import com.prandini.financecontroller.web.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,15 @@ public class TransactionService {
 
     public List<Transaction> listAll() {
         return transactionRepository.findAll(Sort.by(Sort.Direction.DESC, "date", "id"));
+    }
+
+    public List<Transaction> listFiltered(TransactionFilterCriteria criteria) {
+        if (criteria == null || !criteria.hasAnyFilter()) {
+            return listAll();
+        }
+        return transactionRepository.findAll(
+                TransactionSpecifications.withFilters(criteria),
+                Sort.by(Sort.Direction.DESC, "date", "id"));
     }
 
     @Transactional

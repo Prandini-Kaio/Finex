@@ -2,9 +2,11 @@ package com.prandini.financecontroller.web.controller;
 
 import com.prandini.financecontroller.domain.service.TransactionImportService;
 import com.prandini.financecontroller.domain.service.TransactionService;
+import com.prandini.financecontroller.domain.model.enums.PaymentMethod;
 import com.prandini.financecontroller.web.dto.ImportResponse;
 import com.prandini.financecontroller.web.dto.AnticipateInstallmentsRequest;
 import com.prandini.financecontroller.web.dto.InstallmentGroupCommonFieldsRequest;
+import com.prandini.financecontroller.web.dto.TransactionFilterCriteria;
 import com.prandini.financecontroller.web.dto.TransactionRequest;
 import com.prandini.financecontroller.web.dto.TransactionResponse;
 import com.prandini.financecontroller.web.dto.UpdateInstallmentsRequest;
@@ -34,8 +36,28 @@ public class TransactionController {
     private final CsvTransactionExporter csvExporter;
 
     @GetMapping
-    public List<TransactionResponse> listTransactions() {
-        return transactionService.listAll().stream()
+    public List<TransactionResponse> listTransactions(
+            @RequestParam(required = false) List<String> competency,
+            @RequestParam(required = false) List<String> person,
+            @RequestParam(required = false) List<String> category,
+            @RequestParam(required = false) List<String> paymentMethod,
+            @RequestParam(required = false) List<Long> creditCardId,
+            @RequestParam(required = false) Boolean withoutCreditCard) {
+
+        List<PaymentMethod> paymentMethods = paymentMethod == null ? List.of() : paymentMethod.stream()
+                .map(PaymentMethod::fromLabel)
+                .toList();
+
+        TransactionFilterCriteria criteria = new TransactionFilterCriteria(
+                competency,
+                person,
+                category,
+                paymentMethods,
+                creditCardId,
+                withoutCreditCard
+        );
+
+        return transactionService.listFiltered(criteria).stream()
                 .map(FinanceMapper::toResponse)
                 .toList();
     }

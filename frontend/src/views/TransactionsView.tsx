@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, Upload, Download, FileDown, Edit, Package } from 'lucide-react'
 import {
   Bar,
@@ -17,8 +17,11 @@ import {
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
 import type { FinanceFilters, PaymentMethod, Transaction, TransactionPayload } from '../types/finance'
-import { buildInstallments, getPersonIdByName, getInstallmentPreview } from '../utils/finance'
+import { CREDIT_CARD_NONE_VALUE } from '../types/finance'
+import { buildCompetencyOptions, buildInstallments, getPersonIdByName, getInstallmentPreview } from '../utils/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
+import { MultiSelect } from '../components/MultiSelect'
+import { financeService } from '../services/financeService'
 
 type FormState = {
   date: string
@@ -51,7 +54,6 @@ interface TransactionsViewProps {
   onFiltersChange: (next: FinanceFilters) => void
   selectedMonth: string
   onMonthChange: (month: string) => void
-  transactions: Transaction[]
 }
 
 export const TransactionsView: React.FC<TransactionsViewProps> = ({
@@ -59,7 +61,6 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   onFiltersChange,
   selectedMonth,
   onMonthChange,
-  transactions,
 }) => {
   const {
     state: { categories, creditCards, closedMonths, persons, transactions: allTransactions },
@@ -94,8 +95,68 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [anticipateSubmitting, setAnticipateSubmitting] = useState(false)
   const [deleteChoiceTransaction, setDeleteChoiceTransaction] = useState<Transaction | null>(null)
   const [editInstallmentsCount, setEditInstallmentsCount] = useState('')
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loadingTransactions, setLoadingTransactions] = useState(false)
 
-  const isMonthClosed = closedMonths.includes(selectedMonth)
+  const competencyOptions = useMemo(
+    () =>
+      buildCompetencyOptions().map((competency) => ({
+        value: competency,
+        label: competency,
+      })),
+    [],
+  )
+
+  const personOptions = useMemo(
+    () => persons.filter((p) => p.active).map((person) => ({ value: person.name, label: person.name })),
+    [persons],
+  )
+
+  const categoryOptions = useMemo(
+    () => categories.map((category) => ({ value: category, label: category })),
+    [categories],
+  )
+
+  const paymentMethodOptions = useMemo(
+    (): { value: PaymentMethod; label: PaymentMethod }[] => [
+      { value: 'Crédito', label: 'Crédito' },
+      { value: 'Débito', label: 'Débito' },
+      { value: 'Dinheiro', label: 'Dinheiro' },
+      { value: 'PIX', label: 'PIX' },
+    ],
+    [],
+  )
+
+  const creditCardOptions = useMemo(
+    () => [
+      { value: CREDIT_CARD_NONE_VALUE, label: 'Sem cartão' },
+      ...creditCards.map((card) => ({
+        value: String(card.id),
+        label: `${card.name} - ${card.owner}`,
+      })),
+    ],
+    [creditCards],
+  )
+
+  const loadTransactions = useCallback(async () => {
+    setLoadingTransactions(true)
+    try {
+      const data = await financeService.getTransactions(filters)
+      setTransactions(data)
+    } catch (error) {
+      console.error('Erro ao carregar lançamentos filtrados:', error)
+    } finally {
+      setLoadingTransactions(false)
+    }
+  }, [filters])
+
+  useEffect(() => {
+    void loadTransactions()
+  }, [loadTransactions, allTransactions])
+
+  const isMonthClosed = closedMonths.some((month) =>
+    filters.competencies.length > 0 ? filters.competencies.includes(month) : month === selectedMonth,
+  )
 
   const editingTransaction = useMemo(
     () => (editingTransactionId ? allTransactions.find((t) => t.id === editingTransactionId) : undefined),
@@ -158,11 +219,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     }
   }
 
-  const handleFilterChange = (key: keyof FinanceFilters, value: string) => {
-    onFiltersChange({
-      ...filters,
-      [key]: value,
-    })
+  const handleFilterChange = <K extends keyof FinanceFilters>(key: K, value: FinanceFilters[K]) => {
+    const nextFilters = { ...filters, [key]: value }
+    onFiltersChange(nextFilters)
+    if (key === 'competencies' && Array.isArray(value) && value.length > 0) {
+      onMonthChange(value[0])
+    }
   }
 
   const handleSubmit = async () => {
@@ -557,52 +619,41 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md space-y-4 border border-gray-200 dark:border-slate-700">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <select
-            value={filters.person}
-            onChange={(event) => handleFilterChange('person', event.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-          >
-            <option value="Todos">Todos</option>
-            <option value="Kaio">Kaio</option>
-            <option value="Gabriela">Gabriela</option>
-            <option value="Ambos">Ambos</option>
-          </select>
-          <select
-            value={filters.category}
-            onChange={(event) => handleFilterChange('category', event.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-          >
-            <option value="Todas">Todas</option>
-            {categories.map((category) => (
-              <option key={category}>{category}</option>
-            ))}
-          </select>
-          <select
-            value={filters.paymentType}
-            onChange={(event) => handleFilterChange('paymentType', event.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-          >
-            <option value="Todos">Todos</option>
-            <option value="Crédito">Crédito</option>
-            <option value="Débito">Débito</option>
-            <option value="Dinheiro">Dinheiro</option>
-            <option value="PIX">PIX</option>
-          </select>
-          <select
-            value={filters.creditCard}
-            onChange={(event) => handleFilterChange('creditCard', event.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-          >
-            <option value="Todos">Todos os cartões</option>
-            <option value="Sem cartão">Sem cartão</option>
-            {creditCards.map((card) => (
-              <option key={card.id} value={String(card.id)}>
-                {card.name} - {card.owner}
-              </option>
-            ))}
-          </select>
-          <MonthYearSelector value={selectedMonth} onChange={onMonthChange} />
+          <MultiSelect
+            options={personOptions}
+            value={filters.persons}
+            onChange={(value) => handleFilterChange('persons', value)}
+            placeholder="Todas as pessoas"
+          />
+          <MultiSelect
+            options={categoryOptions}
+            value={filters.categories}
+            onChange={(value) => handleFilterChange('categories', value)}
+            placeholder="Todas as categorias"
+          />
+          <MultiSelect
+            options={paymentMethodOptions}
+            value={filters.paymentMethods}
+            onChange={(value) => handleFilterChange('paymentMethods', value as PaymentMethod[])}
+            placeholder="Todos os pagamentos"
+          />
+          <MultiSelect
+            options={creditCardOptions}
+            value={filters.creditCards}
+            onChange={(value) => handleFilterChange('creditCards', value)}
+            placeholder="Todos os cartões"
+          />
+          <MultiSelect
+            options={competencyOptions}
+            value={filters.competencies}
+            onChange={(value) => handleFilterChange('competencies', value)}
+            placeholder="Todas as competências"
+          />
         </div>
+
+        {loadingTransactions && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">Carregando lançamentos...</p>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full">
