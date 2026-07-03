@@ -15,6 +15,8 @@ import type { CreditCardInvoiceStatus, Transaction } from '../types/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
 import { financeService } from '../services/financeService'
 import { allocateValueByPercentages } from '../utils/finance'
+import { BulkPayModal, ReceiptModal, SinglePayModal } from '../components/invoices/InvoicePaymentModals'
+import type { CreditCardInvoiceReceipt } from '../types/finance'
 
 type MonthSummary = {
   totalCards: number
@@ -81,7 +83,7 @@ interface ClosureViewProps {
 
 export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonthChange, transactions }) => {
   const {
-    state: { creditCards, closedMonths, persons },
+    state: { creditCards, closedMonths, persons, bankAccounts },
     actions,
   } = useFinance()
 
@@ -92,6 +94,12 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
   const [bulkUpdating, setBulkUpdating] = useState<'pay' | 'reset' | null>(null)
   const [monthSummaries, setMonthSummaries] = useState<Record<string, MonthSummary>>({})
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all')
+  const [payModalCardId, setPayModalCardId] = useState<number | null>(null)
+  const [payModalAccountId, setPayModalAccountId] = useState<number | null>(null)
+  const [bulkPayModalOpen, setBulkPayModalOpen] = useState(false)
+  const [bulkAccountByCardId, setBulkAccountByCardId] = useState<Record<number, number>>({})
+  const [receipt, setReceipt] = useState<CreditCardInvoiceReceipt | null>(null)
+  const [receiptLoading, setReceiptLoading] = useState(false)
 
   const isClosed = closedMonths.includes(selectedMonth)
   const recentMonths = useMemo(() => getRecentMonths(selectedMonth, 6), [selectedMonth])
@@ -160,41 +168,91 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
     }
   }, [recentMonths, selectedMonth, creditCards])
 
-  const handleToggleInvoice = async (cardId: number) => {
-    const currentPaid = invoiceStatuses[cardId]?.paid ?? false
+  const defaultAccountForOwner = (ownerId?: number, ownerName?: string) =>
+    bankAccounts.find(
+      (a) => a.active && (ownerId != null ? a.ownerId === ownerId : ownerName != null && a.owner === ownerName),
+    )?.id ?? null
+
+  const applyInvoiceUpdate = (updated: CreditCardInvoiceStatus) => {
+    setInvoiceStatuses((prev) => {
+      const next = { ...prev, [updated.creditCardId]: updated }
+      setMonthSummaries((prevSummaries) => ({
+        ...prevSummaries,
+        [selectedMonth]: buildSummary(creditCards, Object.values(next)),
+      }))
+      return next
+    })
+  }
+
+  const confirmPayInvoice = async (cardId: number, bankAccountId: number | null) => {
     setUpdatingCardId(cardId)
     setInvoiceError(null)
     try {
       const updated = await financeService.updateCreditCardInvoiceStatus(cardId, {
         referenceMonth: selectedMonth,
-        paid: !currentPaid,
+        paid: true,
+        bankAccountId: bankAccountId ?? undefined,
       })
-      setInvoiceStatuses((prev) => {
-        const next = {
-          ...prev,
-          [cardId]: updated,
-        }
-        setMonthSummaries((prevSummaries) => ({
-          ...prevSummaries,
-          [selectedMonth]: buildSummary(creditCards, Object.values(next)),
-        }))
-        return next
-      })
+      applyInvoiceUpdate(updated)
+      setPayModalCardId(null)
+      setPayModalAccountId(null)
+      await actions.refresh()
     } catch (error) {
       console.error(error)
-      setInvoiceError(error instanceof Error ? error.message : 'Falha ao atualizar status da fatura')
+      setInvoiceError(error instanceof Error ? error.message : 'Falha ao pagar fatura')
     } finally {
       setUpdatingCardId(null)
     }
   }
 
+  const handleUnpayInvoice = async (cardId: number) => {
+    if (!window.confirm('Desfazer pagamento? O lançamento de saída vinculado será removido.')) return
+    setUpdatingCardId(cardId)
+    setInvoiceError(null)
+    try {
+      const updated = await financeService.updateCreditCardInvoiceStatus(cardId, {
+        referenceMonth: selectedMonth,
+        paid: false,
+      })
+      applyInvoiceUpdate(updated)
+      await actions.refresh()
+    } catch (error) {
+      console.error(error)
+      setInvoiceError(error instanceof Error ? error.message : 'Falha ao desfazer pagamento')
+    } finally {
+      setUpdatingCardId(null)
+    }
+  }
+
+  const handleInvoiceAction = (cardId: number) => {
+    const status = invoiceStatuses[cardId]
+    if (status?.paid) {
+      void handleUnpayInvoice(cardId)
+      return
+    }
+    const amount = status?.invoiceAmount ?? 0
+    if (amount <= 0) {
+      void confirmPayInvoice(cardId, null)
+      return
+    }
+    const ownerId = status?.ownerId
+    const card = creditCards.find((c) => c.id === cardId)
+    setPayModalAccountId(defaultAccountForOwner(ownerId, card?.owner))
+    setPayModalCardId(cardId)
+  }
+
   const handleToggleAllInvoices = async (paid: boolean) => {
-    setBulkUpdating(paid ? 'pay' : 'reset')
+    if (paid) {
+      handleOpenBulkPay()
+      return
+    }
+    if (!window.confirm('Marcar todas como pendentes? Os lançamentos de pagamento serão removidos.')) return
+    setBulkUpdating('reset')
     setInvoiceError(null)
     try {
       const updated = await financeService.updateAllCreditCardInvoices({
         referenceMonth: selectedMonth,
-        paid,
+        paid: false,
       })
       const mapped = mapInvoicesByCard(updated)
       setInvoiceStatuses(mapped)
@@ -202,6 +260,7 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         ...prev,
         [selectedMonth]: buildSummary(creditCards, updated),
       }))
+      await actions.refresh()
     } catch (error) {
       console.error(error)
       setInvoiceError(error instanceof Error ? error.message : 'Falha ao atualizar faturas do mês')
@@ -209,6 +268,68 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
       setBulkUpdating(null)
     }
   }
+
+  const handleOpenBulkPay = () => {
+    const initial: Record<number, number> = {}
+    creditCards.forEach((card) => {
+      const status = invoiceStatuses[card.id]
+      if (!status?.paid && (status?.invoiceAmount ?? 0) > 0) {
+        const accountId = defaultAccountForOwner(status.ownerId, card.owner)
+        if (accountId) initial[card.id] = accountId
+      }
+    })
+    setBulkAccountByCardId(initial)
+    setBulkPayModalOpen(true)
+  }
+
+  const handleConfirmBulkPay = async () => {
+    setBulkUpdating('pay')
+    setInvoiceError(null)
+    try {
+      const updated = await financeService.updateAllCreditCardInvoices({
+        referenceMonth: selectedMonth,
+        paid: true,
+        bankAccountIdByCardId: bulkAccountByCardId,
+      })
+      const mapped = mapInvoicesByCard(updated)
+      setInvoiceStatuses(mapped)
+      setMonthSummaries((prev) => ({
+        ...prev,
+        [selectedMonth]: buildSummary(creditCards, updated),
+      }))
+      setBulkPayModalOpen(false)
+      await actions.refresh()
+    } catch (error) {
+      console.error(error)
+      setInvoiceError(error instanceof Error ? error.message : 'Falha ao pagar faturas')
+    } finally {
+      setBulkUpdating(null)
+    }
+  }
+
+  const handleShowReceipt = async (cardId: number) => {
+    setReceiptLoading(true)
+    setInvoiceError(null)
+    try {
+      const data = await financeService.getCreditCardInvoiceReceipt(cardId, selectedMonth)
+      setReceipt(data)
+    } catch (error) {
+      console.error(error)
+      setInvoiceError(error instanceof Error ? error.message : 'Falha ao carregar comprovante')
+    } finally {
+      setReceiptLoading(false)
+    }
+  }
+
+  const payModalCard = payModalCardId != null ? creditCards.find((c) => c.id === payModalCardId) : null
+  const payModalStatus = payModalCardId != null ? invoiceStatuses[payModalCardId] : null
+  const payModalAccounts = useMemo(() => {
+    if (!payModalCard) return []
+    const ownerId = payModalStatus?.ownerId
+    return bankAccounts.filter(
+      (a) => a.active && (ownerId != null ? a.ownerId === ownerId : a.owner === payModalCard.owner),
+    )
+  }, [bankAccounts, payModalCard, payModalStatus?.ownerId])
 
   const cardExpenses = useMemo(() => {
     return creditCards.map((card) => {
@@ -646,7 +767,7 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
         )}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 dark:border-slate-700 pt-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Use os atalhos para marcar todas as faturas conforme o status real do mês.
+            Use os atalhos para pagar faturas (gera lançamento de saída na conta do titular) ou reverter pagamentos.
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -654,7 +775,7 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
               disabled={bulkUpdating !== null || !hasPendingInvoices || invoiceLoading || creditCards.length === 0}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white disabled:opacity-60"
             >
-              {bulkUpdating === 'pay' ? 'Aplicando...' : 'Marcar todas como pagas'}
+              {bulkUpdating === 'pay' ? 'Aplicando...' : 'Pagar todas as faturas'}
             </button>
             <button
               onClick={() => handleToggleAllInvoices(false)}
@@ -862,14 +983,35 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
                 >
                   {invoiceStatuses[card.id]?.paid ? 'Fatura paga' : 'Fatura pendente'}
                 </span>
-                <button
-                  onClick={() => handleToggleInvoice(card.id)}
-                  disabled={updatingCardId === card.id}
-                  className="text-xs px-3 py-1 rounded-lg border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-60"
-                >
-                  {invoiceStatuses[card.id]?.paid ? 'Marcar como não paga' : 'Marcar como paga'}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  {invoiceStatuses[card.id]?.paid && (
+                    <button
+                      type="button"
+                      onClick={() => void handleShowReceipt(card.id)}
+                      disabled={receiptLoading}
+                      className="text-xs px-3 py-1 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-60"
+                    >
+                      Comprovante
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleInvoiceAction(card.id)}
+                    disabled={updatingCardId === card.id}
+                    className="text-xs px-3 py-1 rounded-lg border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-60"
+                  >
+                    {invoiceStatuses[card.id]?.paid ? 'Desfazer pagamento' : 'Pagar fatura'}
+                  </button>
+                </div>
               </div>
+              {invoiceStatuses[card.id]?.paid && invoiceStatuses[card.id]?.bankAccountName && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Debitado de {invoiceStatuses[card.id]?.bankAccountName}
+                  {invoiceStatuses[card.id]?.invoiceAmount != null && (
+                    <> — {formatBRL(Number(invoiceStatuses[card.id]?.invoiceAmount))}</>
+                  )}
+                </p>
+              )}
               {invoiceStatuses[card.id]?.paidAt && (() => {
                 try {
                   const paidAt = invoiceStatuses[card.id]!.paidAt!
@@ -944,6 +1086,42 @@ export const ClosureView: React.FC<ClosureViewProps> = ({ selectedMonth, onMonth
           </div>
         )}
       </div>
+
+      <SinglePayModal
+        open={payModalCardId != null}
+        cardName={payModalCard?.name ?? ''}
+        ownerName={payModalCard?.owner ?? ''}
+        amount={payModalStatus?.invoiceAmount ?? 0}
+        accounts={payModalAccounts}
+        selectedAccountId={payModalAccountId}
+        onSelectAccount={setPayModalAccountId}
+        onConfirm={() => payModalCardId != null && void confirmPayInvoice(payModalCardId, payModalAccountId)}
+        onClose={() => {
+          setPayModalCardId(null)
+          setPayModalAccountId(null)
+        }}
+        loading={updatingCardId === payModalCardId}
+      />
+
+      <BulkPayModal
+        open={bulkPayModalOpen}
+        cards={creditCards}
+        invoiceStatuses={invoiceStatuses}
+        bankAccounts={bankAccounts}
+        accountByCardId={bulkAccountByCardId}
+        onSelectAccount={(cardId, accountId) =>
+          setBulkAccountByCardId((prev) => ({ ...prev, [cardId]: accountId }))
+        }
+        onConfirm={() => void handleConfirmBulkPay()}
+        onClose={() => setBulkPayModalOpen(false)}
+        loading={bulkUpdating === 'pay'}
+      />
+
+      <ReceiptModal
+        open={receipt != null}
+        receipt={receipt}
+        onClose={() => setReceipt(null)}
+      />
     </div>
   )
 }

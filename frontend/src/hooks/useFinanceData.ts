@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { financeService } from '../services/financeService'
 import type {
+  BankAccount,
+  BankAccountPayload,
   Budget,
   BudgetPayload,
   CreditCard,
@@ -8,6 +10,7 @@ import type {
   DepositPayload,
   FinanceState,
   InstallmentGroupCommonFieldsPayload,
+  InstallmentGroupPayload,
   Investment,
   InvestmentPayload,
   Person,
@@ -26,6 +29,7 @@ const initialState: FinanceState = {
   categories: [],
   closedMonths: [],
   creditCards: [],
+  bankAccounts: [],
   savingsGoals: [],
   recurringTransactions: [],
   investments: [],
@@ -35,6 +39,7 @@ const initialState: FinanceState = {
 interface FinanceActions {
   refresh: () => Promise<void>
   addTransactions: (payloads: TransactionPayload[]) => Promise<Transaction[]>
+  createInstallmentGroup: (payload: InstallmentGroupPayload) => Promise<Transaction[]>
   updateTransaction: (id: number, payload: TransactionPayload) => Promise<Transaction>
   deleteTransaction: (id: number) => Promise<void>
   getInstallments: (parentPurchaseId: number) => Promise<Transaction[]>
@@ -73,6 +78,9 @@ interface FinanceActions {
   createPerson: (payload: { name: string; allowSplit?: boolean; splits?: Person['splits'] }) => Promise<Person>
   updatePerson: (id: number, payload: { name: string; allowSplit?: boolean; splits?: Person['splits'] }) => Promise<Person>
   deletePerson: (id: number, payload: { migrateToPersonId?: number; deleteTransactions: boolean }) => Promise<void>
+  addBankAccount: (payload: BankAccountPayload) => Promise<BankAccount>
+  updateBankAccount: (id: number, payload: BankAccountPayload) => Promise<BankAccount>
+  deleteBankAccount: (id: number) => Promise<void>
 }
 
 export function useFinanceData() {
@@ -83,12 +91,13 @@ export function useFinanceData() {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [transactions, budgets, categories, closedMonths, creditCards, savingsGoals, recurringTransactions, investments, persons] = await Promise.all([
+      const [transactions, budgets, categories, closedMonths, creditCards, bankAccounts, savingsGoals, recurringTransactions, investments, persons] = await Promise.all([
         financeService.getTransactions(),
         financeService.getBudgets(),
         financeService.getCategories(),
         financeService.getClosedMonths(),
         financeService.getCreditCards(),
+        financeService.getBankAccounts(),
         financeService.getSavingsGoals(),
         financeService.getRecurringTransactions(),
         financeService.getInvestments(),
@@ -110,6 +119,7 @@ export function useFinanceData() {
         categories,
         closedMonths,
         creditCards,
+        bankAccounts,
         savingsGoals,
         recurringTransactions,
         investments,
@@ -137,6 +147,12 @@ export function useFinanceData() {
       const tx = await financeService.createTransaction(payload)
       created.push(tx)
     }
+    await refresh()
+    return created
+  }, [refresh])
+
+  const createInstallmentGroup = useCallback(async (payload: InstallmentGroupPayload) => {
+    const created = await financeService.createInstallmentGroup(payload)
     await refresh()
     return created
   }, [refresh])
@@ -333,10 +349,28 @@ export function useFinanceData() {
     await refresh()
   }, [refresh])
 
+  const addBankAccount = useCallback(async (payload: BankAccountPayload) => {
+    const created = await financeService.createBankAccount(payload)
+    await refresh()
+    return created
+  }, [refresh])
+
+  const updateBankAccount = useCallback(async (id: number, payload: BankAccountPayload) => {
+    const updated = await financeService.updateBankAccount(id, payload)
+    await refresh()
+    return updated
+  }, [refresh])
+
+  const deleteBankAccount = useCallback(async (id: number) => {
+    await financeService.deleteBankAccount(id)
+    await refresh()
+  }, [refresh])
+
   const actions: FinanceActions = useMemo(
     () => ({
       refresh,
       addTransactions,
+      createInstallmentGroup,
       updateTransaction,
       deleteTransaction,
       getInstallments,
@@ -369,10 +403,14 @@ export function useFinanceData() {
       createPerson,
       updatePerson,
       deletePerson,
+      addBankAccount,
+      updateBankAccount,
+      deleteBankAccount,
     }),
     [
       refresh,
       addTransactions,
+      createInstallmentGroup,
       updateTransaction,
       deleteTransaction,
       getInstallments,
@@ -405,6 +443,9 @@ export function useFinanceData() {
       createPerson,
       updatePerson,
       deletePerson,
+      addBankAccount,
+      updateBankAccount,
+      deleteBankAccount,
     ],
   )
 

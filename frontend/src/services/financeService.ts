@@ -1,13 +1,18 @@
 import type {
+  BankAccount,
+  BankAccountPayload,
   Budget,
   BudgetPayload,
   CreditCard,
   CreditCardPayload,
   CreditCardInvoicePayload,
+  CreditCardInvoiceReceipt,
   CreditCardInvoiceStatus,
+  PayAllCreditCardInvoicesPayload,
   DepositPayload,
   FinanceFilters,
   InstallmentGroupCommonFieldsPayload,
+  InstallmentGroupPayload,
   Investment,
   InvestmentPayload,
   Person,
@@ -18,6 +23,7 @@ import type {
   SavingsGoalPayload,
   Transaction,
   TransactionPayload,
+  TransactionPreview,
   UpdateInstallmentsPayload,
 } from '../types/finance'
 import { CREDIT_CARD_NONE_VALUE } from '../types/finance'
@@ -75,6 +81,9 @@ function transactionPayloadToApiBody(payload: TransactionPayload): Record<string
   if (parentPurchaseId != null && !Number.isNaN(Number(parentPurchaseId))) {
     body.parentPurchaseId = Number(parentPurchaseId)
   }
+  if (payload.bankAccountId != null && !Number.isNaN(payload.bankAccountId)) {
+    body.bankAccountId = payload.bankAccountId
+  }
   return body
 }
 
@@ -87,6 +96,26 @@ export const financeService = {
     return httpClient<Transaction>('/api/transactions', {
       method: 'POST',
       body: transactionPayloadToApiBody(payload),
+    }).then(mapTransactionResponse)
+  },
+  createInstallmentGroup(payload: InstallmentGroupPayload): Promise<Transaction[]> {
+    return httpClient<Transaction[]>('/api/transactions/installment-groups', {
+      method: 'POST',
+      body: payload,
+    }).then((list) => list.map(mapTransactionResponse))
+  },
+  previewTransaction(payload: {
+    date: string
+    type: TransactionPayload['type']
+    paymentMethod: TransactionPayload['paymentMethod']
+    value: number
+    creditCardId?: number
+    bankAccountId?: number
+    totalInstallments?: number
+  }): Promise<TransactionPreview> {
+    return httpClient<TransactionPreview>('/api/transactions/preview', {
+      method: 'POST',
+      body: payload,
     })
   },
   updateTransaction(id: number, payload: TransactionPayload): Promise<Transaction> {
@@ -201,7 +230,7 @@ export const financeService = {
     const query = encodeURIComponent(competency)
     return httpClient<CreditCardInvoiceStatus[]>(`/api/credit-card-invoices?month=${query}`)
   },
-  updateAllCreditCardInvoices(payload: CreditCardInvoicePayload): Promise<CreditCardInvoiceStatus[]> {
+  updateAllCreditCardInvoices(payload: PayAllCreditCardInvoicesPayload): Promise<CreditCardInvoiceStatus[]> {
     return httpClient<CreditCardInvoiceStatus[]>('/api/credit-card-invoices', {
       method: 'PUT',
       body: payload,
@@ -212,6 +241,10 @@ export const financeService = {
       method: 'PUT',
       body: payload,
     })
+  },
+  getCreditCardInvoiceReceipt(cardId: number, month: string): Promise<CreditCardInvoiceReceipt> {
+    const query = encodeURIComponent(month)
+    return httpClient<CreditCardInvoiceReceipt>(`/api/credit-card-invoices/${cardId}/receipt?month=${query}`)
   },
   createCreditCard(payload: CreditCardPayload): Promise<CreditCard> {
     return httpClient<CreditCard>('/api/credit-cards', {
@@ -434,6 +467,20 @@ export const financeService = {
       method: 'DELETE',
       body: payload,
     })
+  },
+
+  getBankAccounts(ownerId?: number): Promise<BankAccount[]> {
+    const query = ownerId ? `?ownerId=${ownerId}` : ''
+    return httpClient<BankAccount[]>(`/api/bank-accounts${query}`)
+  },
+  createBankAccount(payload: BankAccountPayload): Promise<BankAccount> {
+    return httpClient<BankAccount>('/api/bank-accounts', { method: 'POST', body: payload })
+  },
+  updateBankAccount(id: number, payload: BankAccountPayload): Promise<BankAccount> {
+    return httpClient<BankAccount>(`/api/bank-accounts/${id}`, { method: 'PUT', body: payload })
+  },
+  deleteBankAccount(id: number): Promise<void> {
+    return httpClient<void>(`/api/bank-accounts/${id}`, { method: 'DELETE' })
   },
 }
 

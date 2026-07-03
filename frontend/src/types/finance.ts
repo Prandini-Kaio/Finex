@@ -23,13 +23,15 @@ export interface Transaction {
   creditCard?: string
   creditCardId?: number // Campo do backend
   creditCardName?: string // Campo do backend
+  bankAccountId?: number
+  bankAccountName?: string
   installments: number
   installmentNumber: number
   totalInstallments: number
   parentPurchase?: number
 }
 
-export type TransactionPayload = Omit<Transaction, 'id' | 'person'> & { personId: number }
+export type TransactionPayload = Omit<Transaction, 'id' | 'person'> & { personId: number; bankAccountId?: number }
 
 export type InstallmentGroupCommonFieldsPayload = {
   personId: number
@@ -75,14 +77,80 @@ export interface CreditCardInvoiceStatus {
   creditCardId: number
   creditCardName: string
   owner: string
+  ownerId?: number
   referenceMonth: string
   paid: boolean
   paidAt?: string | number[] | null
+  invoiceAmount?: number
+  paymentTransactionId?: number | null
+  bankAccountId?: number | null
+  bankAccountName?: string | null
 }
 
 export interface CreditCardInvoicePayload {
   referenceMonth: string
   paid: boolean
+  bankAccountId?: number | null
+}
+
+export interface PayAllCreditCardInvoicesPayload {
+  referenceMonth: string
+  paid: boolean
+  bankAccountIdByCardId?: Record<number, number>
+}
+
+export interface CreditCardInvoiceReceipt {
+  creditCardId: number
+  creditCardName: string
+  owner: string
+  referenceMonth: string
+  invoiceAmount: number
+  paidAt?: string | null
+  paymentTransactionId?: number | null
+  bankAccountId?: number | null
+  bankAccountName?: string | null
+  accountBalanceAfterPayment?: number | null
+  paymentDate?: string | null
+  description?: string | null
+}
+
+export interface BankAccount {
+  id: number
+  name: string
+  institution?: string
+  owner: string
+  ownerId: number
+  initialBalance: number
+  currentBalance: number
+  active: boolean
+}
+
+export type BankAccountPayload = Omit<BankAccount, 'id' | 'owner' | 'currentBalance'>
+
+export interface TransactionPreview {
+  invoiceCompetency?: string
+  dueDay?: number
+  installments: Array<{
+    installmentNumber: number
+    date: string
+    competency: string
+    value: number
+  }>
+  bankAccountCurrentBalance?: number
+  bankAccountBalanceAfter?: number
+  bankAccountName?: string
+}
+
+export interface InstallmentGroupPayload {
+  date: string
+  type: TransactionType
+  paymentMethod: PaymentMethod
+  personId: number
+  category: string
+  description: string
+  value: number
+  creditCardId: number
+  totalInstallments: number
 }
 
 export interface SavingsDeposit {
@@ -187,6 +255,7 @@ export interface FinanceState {
   categories: string[]
   closedMonths: string[]
   creditCards: CreditCard[]
+  bankAccounts: BankAccount[]
   savingsGoals: SavingsGoal[]
   recurringTransactions: RecurringTransaction[]
   investments: Investment[]

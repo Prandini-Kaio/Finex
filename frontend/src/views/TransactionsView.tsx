@@ -16,54 +16,19 @@ import {
   Legend,
 } from 'recharts'
 import { useFinance } from '../context/FinanceContext'
-import type { FinanceFilters, PaymentMethod, Transaction, TransactionPayload } from '../types/finance'
-import { CREDIT_CARD_NONE_VALUE } from '../types/finance'
-import { buildCompetencyOptions, buildInstallments, getPersonIdByName, getInstallmentPreview } from '../utils/finance'
+import { useFilters } from '../context/FilterContext'
+import type { Transaction } from '../types/finance'
+import { getInstallmentPreview } from '../utils/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
-import { MultiSelect } from '../components/MultiSelect'
+import { FilterBar } from '../components/filters/FilterBar'
+import { TransactionForm } from '../components/transactions/TransactionForm'
+import { Modal } from '../components/ui/Modal'
 import { financeService } from '../services/financeService'
 
-type FormState = {
-  date: string
-  type: Transaction['type']
-  paymentMethod: PaymentMethod
-  person: string
-  category: string
-  description: string
-  value: string
-  competency: string
-  creditCard: string
-  installments: string
-}
-
-const defaultForm = (selectedMonth: string): FormState => ({
-  date: new Date().toISOString().split('T')[0],
-  type: 'Despesa',
-  paymentMethod: 'Crédito',
-  person: 'Kaio',
-  category: 'Alimentação',
-  description: '',
-  value: '',
-  competency: selectedMonth,
-  creditCard: '',
-  installments: '1',
-})
-
-interface TransactionsViewProps {
-  filters: FinanceFilters
-  onFiltersChange: (next: FinanceFilters) => void
-  selectedMonth: string
-  onMonthChange: (month: string) => void
-}
-
-export const TransactionsView: React.FC<TransactionsViewProps> = ({
-  filters,
-  onFiltersChange,
-  selectedMonth,
-  onMonthChange,
-}) => {
+export const TransactionsView: React.FC = () => {
+  const { filters, selectedMonth } = useFilters()
   const {
-    state: { categories, creditCards, closedMonths, persons, transactions: allTransactions },
+    state: { categories, creditCards, closedMonths, transactions: allTransactions },
     actions,
   } = useFinance()
 
@@ -71,8 +36,6 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [showImportModal, setShowImportModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null)
-  const [form, setForm] = useState<FormState>(defaultForm(selectedMonth))
-  const [submitting, setSubmitting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [exportStartDate, setExportStartDate] = useState('')
   const [exportEndDate, setExportEndDate] = useState('')
@@ -97,46 +60,6 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [editInstallmentsCount, setEditInstallmentsCount] = useState('')
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loadingTransactions, setLoadingTransactions] = useState(false)
-
-  const competencyOptions = useMemo(
-    () =>
-      buildCompetencyOptions().map((competency) => ({
-        value: competency,
-        label: competency,
-      })),
-    [],
-  )
-
-  const personOptions = useMemo(
-    () => persons.filter((p) => p.active).map((person) => ({ value: person.name, label: person.name })),
-    [persons],
-  )
-
-  const categoryOptions = useMemo(
-    () => categories.map((category) => ({ value: category, label: category })),
-    [categories],
-  )
-
-  const paymentMethodOptions = useMemo(
-    (): { value: PaymentMethod; label: PaymentMethod }[] => [
-      { value: 'Crédito', label: 'Crédito' },
-      { value: 'Débito', label: 'Débito' },
-      { value: 'Dinheiro', label: 'Dinheiro' },
-      { value: 'PIX', label: 'PIX' },
-    ],
-    [],
-  )
-
-  const creditCardOptions = useMemo(
-    () => [
-      { value: CREDIT_CARD_NONE_VALUE, label: 'Sem cartão' },
-      ...creditCards.map((card) => ({
-        value: String(card.id),
-        label: `${card.name} - ${card.owner}`,
-      })),
-    ],
-    [creditCards],
-  )
 
   const loadTransactions = useCallback(async () => {
     setLoadingTransactions(true)
@@ -192,102 +115,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     return sum
   }, [anticipateFrom, anticipateTo, sortedInstallmentsModal])
 
-  const installmentPreview = useMemo(() => {
-    if (
-      form.paymentMethod === 'Crédito' &&
-      form.creditCard &&
-      form.date &&
-      form.value &&
-      form.installments
-    ) {
-      return getInstallmentPreview(form.date, Number(form.value), Number(form.installments))
-    }
-    return null
-  }, [form.paymentMethod, form.creditCard, form.date, form.value, form.installments])
-
-  // Resetar form quando o modal abrir
-  useEffect(() => {
-    if (showModal && !editingTransactionId) {
-      setForm(defaultForm(selectedMonth))
-    }
-  }, [showModal, selectedMonth, editingTransactionId])
-
-  // Handler para abrir o modal
   const handleOpenModal = () => {
     if (!isMonthClosed) {
-      setShowModal(true)
-    }
-  }
-
-  const handleFilterChange = <K extends keyof FinanceFilters>(key: K, value: FinanceFilters[K]) => {
-    const nextFilters = { ...filters, [key]: value }
-    onFiltersChange(nextFilters)
-    if (key === 'competencies' && Array.isArray(value) && value.length > 0) {
-      onMonthChange(value[0])
-    }
-  }
-
-  const handleSubmit = async () => {
-    if (!form.value || !form.description) return
-    if (form.paymentMethod === 'Crédito' && !form.creditCard) return
-
-    const personId = getPersonIdByName(persons, form.person)
-    if (!personId) return
-
-    setSubmitting(true)
-    try {
-      if (editingTransactionId) {
-        const orig = allTransactions.find((t) => t.id === editingTransactionId)
-        const grouped = !!orig?.parentPurchase && orig.totalInstallments > 1
-        if (grouped && orig.parentPurchase) {
-          await actions.updateInstallmentGroupCommonFields(orig.parentPurchase, {
-            personId,
-            type: form.type,
-            paymentMethod: form.paymentMethod,
-            creditCardId: form.creditCard ? Number(form.creditCard) : undefined,
-            category: form.category,
-            description: form.description,
-          })
-        } else {
-          const payload: TransactionPayload = {
-            date: form.date,
-            type: form.type,
-            paymentMethod: form.paymentMethod,
-            personId,
-            category: form.category,
-            description: form.description,
-            value: Number(form.value),
-            competency: form.competency,
-            creditCard: form.creditCard,
-            creditCardId: form.creditCard ? Number(form.creditCard) : undefined,
-            installments: Number(form.installments),
-            installmentNumber: 1,
-            totalInstallments: Number(form.installments),
-            parentPurchase: undefined,
-          }
-          await actions.updateTransaction(editingTransactionId, payload)
-        }
-      } else {
-        const payloads: TransactionPayload[] = buildInstallments({
-          date: form.date,
-          type: form.type,
-          paymentMethod: form.paymentMethod,
-          person: form.person,
-          personId,
-          category: form.category,
-          description: form.description,
-          value: Number(form.value),
-          competency: form.competency,
-          creditCard: form.creditCard,
-          installments: Number(form.installments),
-        })
-        await actions.addTransactions(payloads)
-      }
-      setShowModal(false)
       setEditingTransactionId(null)
-      setForm(defaultForm(selectedMonth))
-    } finally {
-      setSubmitting(false)
+      setShowModal(true)
     }
   }
 
@@ -296,20 +127,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
     if (transaction.parentPurchase && transaction.totalInstallments > 1 && transaction.installmentNumber !== 1) {
       return
     }
-
     setEditingTransactionId(transaction.id)
-    setForm({
-      date: transaction.date,
-      type: transaction.type,
-      paymentMethod: transaction.paymentMethod,
-      person: transaction.person,
-      category: transaction.category,
-      description: transaction.description,
-      value: transaction.value.toString(),
-      competency: transaction.competency,
-      creditCard: transaction.creditCardId ? String(transaction.creditCardId) : transaction.creditCard || '',
-      installments: transaction.totalInstallments > 1 ? transaction.totalInstallments.toString() : '1',
-    })
     setShowModal(true)
   }
 
@@ -618,38 +436,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       )}
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md space-y-4 border border-gray-200 dark:border-slate-700">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <MultiSelect
-            options={personOptions}
-            value={filters.persons}
-            onChange={(value) => handleFilterChange('persons', value)}
-            placeholder="Todas as pessoas"
-          />
-          <MultiSelect
-            options={categoryOptions}
-            value={filters.categories}
-            onChange={(value) => handleFilterChange('categories', value)}
-            placeholder="Todas as categorias"
-          />
-          <MultiSelect
-            options={paymentMethodOptions}
-            value={filters.paymentMethods}
-            onChange={(value) => handleFilterChange('paymentMethods', value as PaymentMethod[])}
-            placeholder="Todos os pagamentos"
-          />
-          <MultiSelect
-            options={creditCardOptions}
-            value={filters.creditCards}
-            onChange={(value) => handleFilterChange('creditCards', value)}
-            placeholder="Todos os cartões"
-          />
-          <MultiSelect
-            options={competencyOptions}
-            value={filters.competencies}
-            onChange={(value) => handleFilterChange('competencies', value)}
-            placeholder="Todas as competências"
-          />
-        </div>
+        <FilterBar />
 
         {loadingTransactions && (
           <p className="text-sm text-gray-500 dark:text-gray-400">Carregando lançamentos...</p>
@@ -817,234 +604,35 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
         </div>
       </div>
 
-      {showModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowModal(false)
-            }
+      <Modal
+        open={showModal}
+        onClose={() => {
+          setShowModal(false)
+          setEditingTransactionId(null)
+        }}
+        title={editingTransactionId ? 'Editar lançamento' : 'Novo lançamento'}
+        maxWidth="max-w-2xl"
+      >
+        {isEditingInstallmentGroup && (
+          <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 mb-4">
+            Compra parcelada: altere valor e parcelas pelo ícone do pacote na 1ª parcela.
+          </p>
+        )}
+        <TransactionForm
+          defaultDate={new Date().toISOString().split('T')[0]}
+          defaultCategory={categories[0]}
+          editingTransaction={editingTransaction}
+          onSuccess={() => {
+            setShowModal(false)
+            setEditingTransactionId(null)
+            void loadTransactions()
           }}
-        >
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4 border border-gray-200 dark:border-slate-700">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
-              {editingTransactionId ? 'Editar lançamento' : 'Novo lançamento'}
-            </h2>
-            {isEditingInstallmentGroup && (
-              <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
-                Compra parcelada: valor, datas e quantidade de parcelas são alterados em &quot;Editar compra parcelada&quot; (ícone do pacote na 1ª parcela). Aqui você altera descrição, categoria, pessoa, tipo e pagamento para <strong>todas</strong> as parcelas.
-              </p>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Data
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={(event) => setForm({ ...form, date: event.target.value })}
-                  disabled={isEditingInstallmentGroup}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </label>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Competência
-                <div className="mt-1">
-                  <MonthYearSelector
-                    value={form.competency}
-                    onChange={(value) => setForm({ ...form, competency: value })}
-                    className={isEditingInstallmentGroup ? 'opacity-60 pointer-events-none' : ''}
-                  />
-                </div>
-              </label>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Tipo
-                <select
-                  value={form.type}
-                  onChange={(event) => setForm({ ...form, type: event.target.value as Transaction['type'] })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="Despesa">Despesa</option>
-                  <option value="Receita">Receita</option>
-                </select>
-              </label>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Pessoa
-                <select
-                  value={form.person}
-                  onChange={(event) => setForm({ ...form, person: event.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                >
-                  {persons.filter(p => p.active).map((person) => (
-                    <option key={person.id} value={person.name}>{person.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
-                Categoria
-                <select
-                  value={form.category}
-                  onChange={(event) => setForm({ ...form, category: event.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                >
-                  {categories.map((category) => (
-                    <option key={category}>{category}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 md:col-span-2">
-                Descrição
-                <input
-                  type="text"
-                  value={form.description}
-                  onChange={(event) => setForm({ ...form, description: event.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                />
-              </label>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Valor (R$)
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.value}
-                  onChange={(event) => setForm({ ...form, value: event.target.value })}
-                  disabled={isEditingInstallmentGroup}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </label>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Pagamento
-                <select
-                  value={form.paymentMethod}
-                  onChange={(event) =>
-                    setForm({ ...form, paymentMethod: event.target.value as PaymentMethod })
-                  }
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="Crédito">Crédito</option>
-                  <option value="Débito">Débito</option>
-                  <option value="Dinheiro">Dinheiro</option>
-                  <option value="PIX">PIX</option>
-                </select>
-              </label>
-              {form.paymentMethod === 'Crédito' && (
-                <>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Cartão de crédito
-                    <select
-                      value={form.creditCard}
-                      onChange={(event) => setForm({ ...form, creditCard: event.target.value })}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                    >
-                      <option value="">Selecione</option>
-                      {creditCards.map((card) => (
-                        <option key={card.id} value={String(card.id)}>
-                          {card.name} - {card.owner}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Parcelas
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={form.installments}
-                      onChange={(event) => setForm({ ...form, installments: event.target.value })}
-                      disabled={isEditingInstallmentGroup}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
-                      placeholder="1"
-                    />
-                  </label>
-                  {installmentPreview && !isEditingInstallmentGroup && (
-                    <div className="md:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-white text-sm">📅</span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
-                            Preview das Parcelas
-                            <span className="text-xs font-normal bg-blue-200 dark:bg-blue-800 px-2 py-0.5 rounded-full">
-                              {creditCards.find(c => String(c.id) === form.creditCard)?.name || 'Cartão selecionado'}
-                            </span>
-                          </p>
-                          <div className="space-y-2 text-sm">
-                            <div className="bg-white dark:bg-slate-800 rounded-md p-2 border border-blue-200 dark:border-blue-700">
-                              <p className="text-blue-800 dark:text-blue-200">
-                                <span className="font-semibold">1ª parcela cairá em:</span>{' '}
-                                <span className="text-blue-900 dark:text-blue-100 font-bold text-base">
-                                  {installmentPreview.firstCompetency}
-                                </span>
-                              </p>
-                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                Valor: R$ {installmentPreview.installmentValue.toFixed(2)}
-                              </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div className="bg-white dark:bg-slate-800 rounded-md p-2 border border-blue-200 dark:border-blue-700">
-                                <p className="text-blue-600 dark:text-blue-400">Parcelas</p>
-                                <p className="text-blue-900 dark:text-blue-100 font-bold">
-                                  {installmentPreview.installments}x
-                                </p>
-                              </div>
-                              <div className="bg-white dark:bg-slate-800 rounded-md p-2 border border-blue-200 dark:border-blue-700">
-                                <p className="text-blue-600 dark:text-blue-400">Total</p>
-                                <p className="text-blue-900 dark:text-blue-100 font-bold">
-                                  R$ {installmentPreview.totalValue.toFixed(2)}
-                                </p>
-                              </div>
-                            </div>
-                            {installmentPreview.installments > 1 && (
-                              <details className="mt-2">
-                                <summary className="cursor-pointer text-xs font-medium text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 py-1">
-                                  📋 Ver cronograma completo ({installmentPreview.installments} parcelas)
-                                </summary>
-                                <div className="mt-2 bg-white dark:bg-slate-800 rounded-md p-2 border border-blue-200 dark:border-blue-700 max-h-40 overflow-y-auto">
-                                  {installmentPreview.allCompetencies.map((comp, idx) => (
-                                    <div key={idx} className="py-1.5 border-b border-blue-100 dark:border-blue-800 last:border-0 flex justify-between items-center text-xs">
-                                      <span className="text-blue-800 dark:text-blue-200">
-                                        <span className="font-semibold">{idx + 1}ª parcela:</span> {comp}
-                                      </span>
-                                      <span className="text-blue-900 dark:text-blue-100 font-bold">
-                                        R$ {installmentPreview.installmentValue.toFixed(2)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </details>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowModal(false)
-                  setEditingTransactionId(null)
-                  setForm(defaultForm(selectedMonth))
-                }}
-                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 transition-colors"
-                disabled={submitting}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSubmit}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-                disabled={submitting}
-              >
-                {editingTransactionId ? 'Atualizar' : 'Salvar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          onCancel={() => {
+            setShowModal(false)
+            setEditingTransactionId(null)
+          }}
+        />
+      </Modal>
 
       {/* Modal de Importação */}
       {showImportModal && (
