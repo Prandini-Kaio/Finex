@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { DollarSign, TrendingDown, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -19,6 +19,8 @@ import { useFinance } from '../context/FinanceContext'
 import type { Transaction } from '../types/finance'
 import { allocateValueByPercentages, getSavingsProgress } from '../utils/finance'
 import { MonthYearSelector } from '../components/MonthYearSelector'
+import { DashboardSummaryCards } from '../components/dashboard/DashboardSummaryCards'
+import { BankAccountsOverview } from '../components/dashboard/BankAccountsOverview'
 
 interface DashboardViewProps {
   selectedMonth: string
@@ -543,33 +545,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <SummaryCard
-              title="Receitas"
-              value={`R$ ${stats.income.toFixed(2)}`}
-              icon={<TrendingUp className="text-green-500" size={32} />}
-              accent="border-green-500"
-            />
-            <SummaryCard
-              title="Despesas"
-              value={`R$ ${stats.expenses.toFixed(2)}`}
-              icon={<TrendingDown className="text-red-500" size={32} />}
-              accent="border-red-500"
-            />
-            <SummaryCard
-              title="Saldo do mês"
-              value={`R$ ${stats.balance.toFixed(2)}`}
-              icon={<DollarSign className="text-blue-500" size={32} />}
-              accent={stats.balance >= 0 ? 'border-blue-500' : 'border-orange-500'}
-            />
-            <SummaryCard
-              title="Poupado vs Meta"
-              value={`${savingsInfo.percentage.toFixed(1)}%`}
-              icon={<span className="text-purple-500 text-3xl">🏦</span>}
-              accent="border-purple-500"
-              helper={`R$ ${savingsInfo.totalSaved.toFixed(2)} / R$ ${savingsInfo.totalGoals.toFixed(2)}`}
-            />
-          </div>
+          <DashboardSummaryCards
+            income={stats.income}
+            expenses={stats.expenses}
+            balance={stats.balance}
+            savingsPercent={savingsInfo.percentage}
+          />
+
+          <BankAccountsOverview />
 
           {(fixedPreview.fixedIncomeTotal !== 0 || fixedPreview.fixedExpenseTotal !== 0) && (
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
@@ -782,63 +765,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
         </div>
       </div>
 
-      {/* Gráficos Anuais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Gráfico de Gastos Anuais */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Gastos Anuais - {new Date().getFullYear()}</h3>
-          {annualSpendingChart.some((d) => d.despesas > 0 || d.receitas > 0) ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={annualSpendingChart}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
-                <Legend />
-                <Bar dataKey="receitas" fill="#10b981" name="Receitas" />
-                <Bar dataKey="despesas" fill="#ef4444" name="Despesas" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <EmptyState message="Nenhum dado disponível para este ano" />
-          )}
-        </div>
-
-        {/* Gráfico de Economia/Poupança Anual */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Economia e Poupança - {new Date().getFullYear()}</h3>
-          {annualSavingsChart.some((d) => d.economia !== 0) ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={annualSavingsChart}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="economia"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  name="Economia Acumulada"
-                  dot={{ r: 4 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="poupanca"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  name="Poupança Total"
-                  strokeDasharray="5 5"
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <EmptyState message="Nenhum dado disponível para este ano" />
-          )}
-        </div>
-      </div>
+      {/* Gráficos Anuais — bloco duplicado removido */}
         </>
       )}
 
@@ -1000,25 +927,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ selectedMonth, onM
     </div>
   )
 }
-
-const SummaryCard: React.FC<{
-  title: string
-  value: string
-  icon: React.ReactNode
-  accent: string
-  helper?: string
-}> = ({ title, value, icon, accent, helper }) => (
-  <div className={`bg-white dark:bg-slate-800 border-l-4 ${accent} rounded-lg p-4 shadow border border-gray-200 dark:border-slate-700`}>
-    <div className="flex justify-between items-center">
-      <div>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
-        <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{value}</p>
-        {helper && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{helper}</p>}
-      </div>
-      {icon}
-    </div>
-  </div>
-)
 
 const EmptyState: React.FC<{ message: string }> = ({ message }) => (
   <div className="flex items-center justify-center h-48 text-gray-400 text-sm">{message}</div>
