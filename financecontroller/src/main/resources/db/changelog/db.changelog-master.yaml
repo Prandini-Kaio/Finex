@@ -23,4 +23,12 @@ databaseChangeLog:
       file: classpath:db/changelog/db.changelog-012-add-percentage-to-person-split-relationship.yaml
   - include:
       file: classpath:db/changelog/db.changelog-013-backfill-parent-purchase-id.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-014-create-bank-accounts.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-015-transaction-bank-account.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-016-migration-backfill.yaml
+  - include:
+      file: classpath:db/changelog/db.changelog-017-invoice-payment-transaction.yaml
 

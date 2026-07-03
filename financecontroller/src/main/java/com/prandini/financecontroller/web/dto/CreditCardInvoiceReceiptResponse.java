@@ -4,17 +4,18 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-public record CreditCardInvoiceResponse(
+public record CreditCardInvoiceReceiptResponse(
         Long creditCardId,
         String creditCardName,
         String owner,
-        Long ownerId,
         String referenceMonth,
-        boolean paid,
-        LocalDateTime paidAt,
         BigDecimal invoiceAmount,
+        LocalDateTime paidAt,
         Long paymentTransactionId,
         Long bankAccountId,
-        String bankAccountName
+        String bankAccountName,
+        BigDecimal accountBalanceAfterPayment,
+        LocalDate paymentDate,
+        String description
 ) {
 }

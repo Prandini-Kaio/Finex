@@ -1,8 +1,10 @@
 package com.prandini.financecontroller.web.controller;
 
 import com.prandini.financecontroller.domain.service.CreditCardInvoiceService;
+import com.prandini.financecontroller.web.dto.CreditCardInvoiceReceiptResponse;
 import com.prandini.financecontroller.web.dto.CreditCardInvoiceRequest;
 import com.prandini.financecontroller.web.dto.CreditCardInvoiceResponse;
+import com.prandini.financecontroller.web.dto.PayAllCreditCardInvoicesRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,8 +22,15 @@ public class CreditCardInvoiceController {
         return creditCardInvoiceService.listByMonth(referenceMonth);
     }
 
+    @GetMapping("/{cardId}/receipt")
+    public CreditCardInvoiceReceiptResponse getReceipt(
+            @PathVariable Long cardId,
+            @RequestParam("month") String referenceMonth) {
+        return creditCardInvoiceService.getReceipt(cardId, referenceMonth);
+    }
+
     @PutMapping
-    public List<CreditCardInvoiceResponse> updateAll(@RequestBody CreditCardInvoiceRequest request) {
+    public List<CreditCardInvoiceResponse> updateAll(@RequestBody PayAllCreditCardInvoicesRequest request) {
         return creditCardInvoiceService.updateAllStatus(request);
     }
 
@@ -31,5 +40,3 @@ public class CreditCardInvoiceController {
         return creditCardInvoiceService.updateStatus(cardId, request);
     }
 }
-
-

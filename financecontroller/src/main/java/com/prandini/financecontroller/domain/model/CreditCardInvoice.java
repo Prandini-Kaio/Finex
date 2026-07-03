@@ -31,6 +31,10 @@ public class CreditCardInvoice {
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_transaction_id")
+    private Transaction paymentTransaction;
 }
 
 

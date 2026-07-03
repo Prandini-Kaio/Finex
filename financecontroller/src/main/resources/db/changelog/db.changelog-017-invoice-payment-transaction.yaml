@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 017-invoice-payment-transaction
+      author: financecontroller
+      changes:
+        - addColumn:
+            tableName: credit_card_invoices
+            columns:
+              - column:
+                  name: payment_transaction_id
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_invoice_payment_transaction
+                    references: transactions(id)
