@@ -26,6 +26,9 @@ desktop.ini
 *.log
 logs/
 
+# Backups locais do banco
+backups/
+
 # Frontend (já tem seu próprio .gitignore, mas incluindo aqui também)
 frontend/node_modules/
 frontend/dist/
