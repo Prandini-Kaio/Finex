@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 016-backfill-bank-accounts
+      author: financecontroller
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO bank_accounts (name, institution, owner_id, initial_balance, current_balance, active)
+              SELECT 'Conta principal - ' || p.name, NULL, p.id, 0, 0, true
+              FROM persons p
+              WHERE (p.active IS NULL OR p.active = true)
+              AND NOT EXISTS (
+                SELECT 1 FROM bank_accounts ba WHERE ba.owner_id = p.id AND ba.name = 'Conta principal - ' || p.name
+              );
+        - sql:
+            sql: |
+              UPDATE transactions t
+              SET bank_account_id = (
+                SELECT ba.id FROM bank_accounts ba
+                WHERE ba.owner_id = t.person_id
+                ORDER BY ba.id ASC
+                LIMIT 1
+              )
+              WHERE t.payment_method IN ('Débito', 'PIX', 'Dinheiro')
+              AND t.bank_account_id IS NULL
+              AND t.person_id IS NOT NULL;

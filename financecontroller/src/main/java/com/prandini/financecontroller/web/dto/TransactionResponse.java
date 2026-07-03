@@ -18,6 +18,8 @@ public record TransactionResponse(
         String competency,
         Long creditCardId,
         String creditCardName,
+        Long bankAccountId,
+        String bankAccountName,
         Integer installments,
         Integer installmentNumber,
         Integer totalInstallments,

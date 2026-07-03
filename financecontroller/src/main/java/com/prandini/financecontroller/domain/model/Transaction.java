@@ -49,6 +49,10 @@ public class Transaction {
     @JoinColumn(name = "credit_card_id")
     private CreditCard creditCard;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bank_account_id")
+    private BankAccount bankAccount;
+
     private Integer installments;
     private Integer installmentNumber;
     private Integer totalInstallments;

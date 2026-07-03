@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015-add-bank-account-to-transactions
+      author: financecontroller
+      changes:
+        - addColumn:
+            tableName: transactions
+            columns:
+              - column:
+                  name: bank_account_id
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_transactions_bank_account
+                    references: bank_accounts(id)

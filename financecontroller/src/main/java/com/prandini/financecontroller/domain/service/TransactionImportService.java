@@ -5,6 +5,7 @@ import com.prandini.financecontroller.domain.model.Person;
 import com.prandini.financecontroller.domain.model.Transaction;
 import com.prandini.financecontroller.domain.model.enums.PaymentMethod;
 import com.prandini.financecontroller.domain.model.enums.TransactionType;
+import com.prandini.financecontroller.domain.repository.BankAccountRepository;
 import com.prandini.financecontroller.domain.repository.CreditCardRepository;
 import com.prandini.financecontroller.domain.repository.PersonRepository;
 import com.prandini.financecontroller.domain.repository.TransactionRepository;
@@ -27,6 +28,7 @@ public class TransactionImportService {
     private final TransactionService transactionService;
     private final CreditCardRepository creditCardRepository;
     private final PersonRepository personRepository;
+    private final BankAccountRepository bankAccountRepository;
 
     @Transactional
     public ImportResponse importFromCsv(String csvContent) {
@@ -69,6 +71,14 @@ public class TransactionImportService {
         Integer totalInstallments = installments;
         Long parentPurchaseId = null;
 
+        Long bankAccountId = null;
+        if (paymentMethod != PaymentMethod.CREDITO) {
+            bankAccountId = bankAccountRepository.findByOwnerIdAndActiveTrueOrderByNameAsc(personId).stream()
+                    .findFirst()
+                    .map(account -> account.getId())
+                    .orElse(null);
+        }
+
         return new TransactionRequest(
                 importRequest.date(),
                 type,
@@ -82,7 +92,8 @@ public class TransactionImportService {
                 installments,
                 installmentNumber,
                 totalInstallments,
-                parentPurchaseId
+                parentPurchaseId,
+                bankAccountId
         );
     }
 

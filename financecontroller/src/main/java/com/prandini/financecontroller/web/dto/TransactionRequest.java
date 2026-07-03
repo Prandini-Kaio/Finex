@@ -19,7 +19,8 @@ public record TransactionRequest(
         Integer installments,
         Integer installmentNumber,
         Integer totalInstallments,
-        Long parentPurchaseId
+        Long parentPurchaseId,
+        Long bankAccountId
 ) {
 }
 
