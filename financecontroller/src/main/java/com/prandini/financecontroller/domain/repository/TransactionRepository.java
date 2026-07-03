@@ -31,5 +31,18 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     @Modifying
     @Query("DELETE FROM Transaction t WHERE t.parentPurchaseId = :parentPurchaseId")
     void deleteByParentPurchaseId(@Param("parentPurchaseId") Long parentPurchaseId);
+
+    @Query("""
+            SELECT COALESCE(SUM(t.value), 0) FROM Transaction t
+            WHERE t.creditCard.id = :cardId
+            AND t.competency = :competency
+            AND t.type = :type
+            AND t.paymentMethod = :paymentMethod
+            """)
+    java.math.BigDecimal sumByCreditCardAndCompetency(
+            @Param("cardId") Long cardId,
+            @Param("competency") String competency,
+            @Param("type") TransactionType type,
+            @Param("paymentMethod") com.prandini.financecontroller.domain.model.enums.PaymentMethod paymentMethod);
 }
 

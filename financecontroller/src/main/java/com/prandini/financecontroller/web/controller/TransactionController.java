@@ -7,6 +7,9 @@ import com.prandini.financecontroller.web.dto.ImportResponse;
 import com.prandini.financecontroller.web.dto.AnticipateInstallmentsRequest;
 import com.prandini.financecontroller.web.dto.InstallmentGroupCommonFieldsRequest;
 import com.prandini.financecontroller.web.dto.TransactionFilterCriteria;
+import com.prandini.financecontroller.web.dto.InstallmentGroupRequest;
+import com.prandini.financecontroller.web.dto.TransactionPreviewRequest;
+import com.prandini.financecontroller.web.dto.TransactionPreviewResponse;
 import com.prandini.financecontroller.web.dto.TransactionRequest;
 import com.prandini.financecontroller.web.dto.TransactionResponse;
 import com.prandini.financecontroller.web.dto.UpdateInstallmentsRequest;
@@ -66,6 +69,19 @@ public class TransactionController {
     @ResponseStatus(HttpStatus.CREATED)
     public TransactionResponse createTransaction(@RequestBody TransactionRequest request) {
         return FinanceMapper.toResponse(transactionService.create(request));
+    }
+
+    @PostMapping("/installment-groups")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<TransactionResponse> createInstallmentGroup(@RequestBody InstallmentGroupRequest request) {
+        return transactionService.createInstallmentGroup(request).stream()
+                .map(FinanceMapper::toResponse)
+                .toList();
+    }
+
+    @PostMapping("/preview")
+    public TransactionPreviewResponse previewTransaction(@RequestBody TransactionPreviewRequest request) {
+        return transactionService.preview(request);
     }
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

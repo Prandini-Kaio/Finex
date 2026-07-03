@@ -23,6 +23,8 @@ public final class FinanceMapper {
                 transaction.getCompetency(),
                 transaction.getCreditCard() != null ? transaction.getCreditCard().getId() : null,
                 transaction.getCreditCard() != null ? transaction.getCreditCard().getName() : null,
+                transaction.getBankAccount() != null ? transaction.getBankAccount().getId() : null,
+                transaction.getBankAccount() != null ? transaction.getBankAccount().getName() : null,
                 transaction.getInstallments(),
                 transaction.getInstallmentNumber(),
                 transaction.getTotalInstallments(),
@@ -50,6 +52,19 @@ public final class FinanceMapper {
                 card.getClosingDay(),
                 card.getDueDay(),
                 card.getLimit()
+        );
+    }
+
+    public static BankAccountResponse toResponse(BankAccount account) {
+        return new BankAccountResponse(
+                account.getId(),
+                account.getName(),
+                account.getInstitution(),
+                account.getOwner() != null ? account.getOwner().getName() : null,
+                account.getOwner() != null ? account.getOwner().getId() : null,
+                account.getInitialBalance(),
+                account.getCurrentBalance(),
+                account.getActive()
         );
     }
 
@@ -118,13 +133,20 @@ public final class FinanceMapper {
 
     public static CreditCardInvoiceResponse toResponse(CreditCard card, CreditCardInvoice invoice, String referenceMonth) {
         boolean paid = invoice != null && invoice.isPaid();
+        Transaction payment = invoice != null ? invoice.getPaymentTransaction() : null;
+        BankAccount account = payment != null ? payment.getBankAccount() : null;
         return new CreditCardInvoiceResponse(
                 card.getId(),
                 card.getName(),
                 card.getOwner() != null ? card.getOwner().getName() : null,
+                card.getOwner() != null ? card.getOwner().getId() : null,
                 referenceMonth,
                 paid,
-                paid ? invoice.getPaidAt() : null
+                paid && invoice != null ? invoice.getPaidAt() : null,
+                null,
+                payment != null ? payment.getId() : null,
+                account != null ? account.getId() : null,
+                account != null ? account.getName() : null
         );
     }
 

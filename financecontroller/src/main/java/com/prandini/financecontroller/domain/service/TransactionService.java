@@ -1,17 +1,23 @@
 package com.prandini.financecontroller.domain.service;
 
+import com.prandini.financecontroller.domain.model.BankAccount;
 import com.prandini.financecontroller.domain.model.CreditCard;
 import com.prandini.financecontroller.domain.model.Person;
 import com.prandini.financecontroller.domain.model.Transaction;
 import com.prandini.financecontroller.domain.model.enums.PaymentMethod;
 import com.prandini.financecontroller.domain.model.enums.TransactionType;
+import com.prandini.financecontroller.domain.repository.BankAccountRepository;
 import com.prandini.financecontroller.domain.repository.ClosedMonthRepository;
 import com.prandini.financecontroller.domain.repository.CreditCardRepository;
 import com.prandini.financecontroller.domain.repository.PersonRepository;
 import com.prandini.financecontroller.domain.repository.TransactionRepository;
 import com.prandini.financecontroller.web.dto.AnticipateInstallmentsRequest;
 import com.prandini.financecontroller.web.dto.InstallmentGroupCommonFieldsRequest;
+import com.prandini.financecontroller.web.dto.InstallmentGroupRequest;
+import com.prandini.financecontroller.web.dto.InstallmentPreviewItem;
 import com.prandini.financecontroller.web.dto.TransactionFilterCriteria;
+import com.prandini.financecontroller.web.dto.TransactionPreviewRequest;
+import com.prandini.financecontroller.web.dto.TransactionPreviewResponse;
 import com.prandini.financecontroller.web.dto.TransactionRequest;
 import com.prandini.financecontroller.web.dto.UpdateInstallmentsRequest;
 import com.prandini.financecontroller.domain.repository.TransactionSpecifications;
@@ -38,6 +44,9 @@ public class TransactionService {
     private final CreditCardRepository creditCardRepository;
     private final PersonRepository personRepository;
     private final ClosedMonthRepository closedMonthRepository;
+    private final BankAccountRepository bankAccountRepository;
+    private final BankAccountService bankAccountService;
+    private final CreditCardBillingService creditCardBillingService;
 
     public List<Transaction> listAll() {
         return transactionRepository.findAll(Sort.by(Sort.Direction.DESC, "date", "id"));
@@ -56,7 +65,15 @@ public class TransactionService {
     public Transaction create(TransactionRequest request) {
         Person person = personRepository.findById(request.personId())
                 .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.personId()));
-        
+
+        bankAccountService.validateBankAccountRequired(request.paymentMethod(), request.bankAccountId(), request.type());
+
+        String competency = resolveCompetencyForCreate(request);
+        assertCompetencyOpen(competency);
+
+        int totalInstallments = request.totalInstallments() != null ? request.totalInstallments() : 1;
+        int installmentNumber = request.installmentNumber() != null ? request.installmentNumber() : 1;
+
         Transaction transaction = Transaction.builder()
                 .date(request.date())
                 .type(request.type())
@@ -65,10 +82,10 @@ public class TransactionService {
                 .category(request.category())
                 .description(request.description())
                 .value(request.value())
-                .competency(request.competency())
-                .installments(request.installments())
-                .installmentNumber(request.installmentNumber())
-                .totalInstallments(request.totalInstallments())
+                .competency(competency)
+                .installments(totalInstallments)
+                .installmentNumber(installmentNumber)
+                .totalInstallments(totalInstallments)
                 .parentPurchaseId(request.parentPurchaseId())
                 .build();
 
@@ -77,7 +94,107 @@ public class TransactionService {
                     .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado: " + request.creditCardId()));
             transaction.setCreditCard(creditCard);
         }
-        return transactionRepository.save(transaction);
+
+        if (request.bankAccountId() != null) {
+            BankAccount bankAccount = bankAccountRepository.findById(request.bankAccountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Conta bancária não encontrada: " + request.bankAccountId()));
+            bankAccountService.validateBankAccountAccess(person, bankAccount, request.type());
+            transaction.setBankAccount(bankAccount);
+        }
+
+        Transaction saved = transactionRepository.save(transaction);
+        bankAccountService.applyTransactionMovement(saved);
+        return saved;
+    }
+
+    @Transactional
+    public List<Transaction> createInstallmentGroup(InstallmentGroupRequest request) {
+        if (request.paymentMethod() != PaymentMethod.CREDITO) {
+            throw new BadRequestException("Grupo parcelado permitido apenas para crédito");
+        }
+        if (request.creditCardId() == null) {
+            throw new BadRequestException("Cartão de crédito é obrigatório");
+        }
+        int totalInstallments = request.totalInstallments() != null ? request.totalInstallments() : 1;
+        if (totalInstallments < 2) {
+            throw new BadRequestException("Grupo parcelado exige pelo menos 2 parcelas");
+        }
+
+        Person person = personRepository.findById(request.personId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.personId()));
+        CreditCard creditCard = creditCardRepository.findById(request.creditCardId())
+                .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado: " + request.creditCardId()));
+
+        List<InstallmentPreviewItem> preview = creditCardBillingService.previewInstallments(
+                request.date(), request.value(), totalInstallments, creditCard.getClosingDay());
+        for (InstallmentPreviewItem item : preview) {
+            assertCompetencyOpen(item.competency());
+        }
+
+        Long parentPurchaseId = nextParentPurchaseId();
+        List<Transaction> created = new ArrayList<>();
+        for (InstallmentPreviewItem item : preview) {
+            Transaction tx = Transaction.builder()
+                    .date(item.date())
+                    .type(request.type())
+                    .paymentMethod(request.paymentMethod())
+                    .person(person)
+                    .category(request.category())
+                    .description(request.description())
+                    .value(item.value())
+                    .competency(item.competency())
+                    .creditCard(creditCard)
+                    .installments(totalInstallments)
+                    .installmentNumber(item.installmentNumber())
+                    .totalInstallments(totalInstallments)
+                    .parentPurchaseId(parentPurchaseId)
+                    .build();
+            created.add(transactionRepository.save(tx));
+        }
+        return created;
+    }
+
+    public TransactionPreviewResponse preview(TransactionPreviewRequest request) {
+        int totalInstallments = request.totalInstallments() != null ? request.totalInstallments() : 1;
+        List<InstallmentPreviewItem> installments = List.of();
+        String invoiceCompetency = null;
+        Integer dueDay = null;
+
+        if (request.paymentMethod() == PaymentMethod.CREDITO) {
+            if (request.creditCardId() == null) {
+                throw new BadRequestException("Cartão de crédito é obrigatório para preview de crédito");
+            }
+            CreditCard card = creditCardRepository.findById(request.creditCardId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado: " + request.creditCardId()));
+            dueDay = card.getDueDay();
+            installments = creditCardBillingService.previewInstallments(
+                    request.date(), request.value(), totalInstallments, card.getClosingDay());
+            invoiceCompetency = installments.isEmpty() ? null : installments.getFirst().competency();
+        } else {
+            invoiceCompetency = creditCardBillingService.resolveNonCreditCompetency(request.date());
+        }
+
+        BigDecimal currentBalance = null;
+        BigDecimal balanceAfter = null;
+        String bankAccountName = null;
+        if (request.bankAccountId() != null && request.paymentMethod() != PaymentMethod.CREDITO) {
+            BankAccount account = bankAccountRepository.findById(request.bankAccountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Conta bancária não encontrada: " + request.bankAccountId()));
+            currentBalance = account.getCurrentBalance();
+            bankAccountName = account.getName();
+            BigDecimal value = request.value() != null ? request.value() : BigDecimal.ZERO;
+            BigDecimal delta = request.type() == TransactionType.RECEITA ? value : value.negate();
+            balanceAfter = currentBalance.add(delta);
+        }
+
+        return new TransactionPreviewResponse(
+                invoiceCompetency,
+                dueDay,
+                installments,
+                currentBalance,
+                balanceAfter,
+                bankAccountName
+        );
     }
 
     @Transactional
@@ -85,8 +202,19 @@ public class TransactionService {
         Transaction transaction = transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada: " + id));
 
+        if (transaction.getCompetency() != null) {
+            assertCompetencyOpen(transaction.getCompetency());
+        }
+        if (request.competency() != null) {
+            assertCompetencyOpen(request.competency());
+        }
+
+        bankAccountService.reverseTransactionMovement(transaction);
+
         Person person = personRepository.findById(request.personId())
                 .orElseThrow(() -> new ResourceNotFoundException("Pessoa não encontrada: " + request.personId()));
+
+        bankAccountService.validateBankAccountRequired(request.paymentMethod(), request.bankAccountId(), request.type());
 
         transaction.setDate(request.date());
         transaction.setType(request.type());
@@ -109,14 +237,28 @@ public class TransactionService {
             transaction.setCreditCard(null);
         }
 
-        return transactionRepository.save(transaction);
+        if (request.bankAccountId() != null) {
+            BankAccount bankAccount = bankAccountRepository.findById(request.bankAccountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Conta bancária não encontrada: " + request.bankAccountId()));
+            bankAccountService.validateBankAccountAccess(person, bankAccount, request.type());
+            transaction.setBankAccount(bankAccount);
+        } else {
+            transaction.setBankAccount(null);
+        }
+
+        Transaction saved = transactionRepository.save(transaction);
+        bankAccountService.applyTransactionMovement(saved);
+        return saved;
     }
 
     @Transactional
     public void delete(Long id) {
-        if (!transactionRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Transação não encontrada: " + id);
+        Transaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada: " + id));
+        if (transaction.getCompetency() != null) {
+            assertCompetencyOpen(transaction.getCompetency());
         }
+        bankAccountService.reverseTransactionMovement(transaction);
         transactionRepository.deleteById(id);
     }
 
@@ -492,6 +634,25 @@ public class TransactionService {
         int month = Integer.parseInt(parts[0].trim());
         int year = Integer.parseInt(parts[1].trim());
         return LocalDate.of(year, month, 1);
+    }
+
+    private String resolveCompetencyForCreate(TransactionRequest request) {
+        if (request.competency() != null && !request.competency().isBlank()) {
+            return normalizeCompetency(request.competency().trim());
+        }
+        if (request.paymentMethod() == PaymentMethod.CREDITO) {
+            if (request.creditCardId() == null) {
+                throw new BadRequestException("Cartão de crédito é obrigatório");
+            }
+            CreditCard card = creditCardRepository.findById(request.creditCardId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado: " + request.creditCardId()));
+            return creditCardBillingService.resolveInvoiceCompetency(request.date(), card.getClosingDay());
+        }
+        return creditCardBillingService.resolveNonCreditCompetency(request.date());
+    }
+
+    private Long nextParentPurchaseId() {
+        return System.currentTimeMillis();
     }
 }
 
