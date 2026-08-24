@@ -1,0 +1,17 @@
+---
+description: Definição canônica do Finex — ler PROJECT.md e seguir camadas/regras
+alwaysApply: true
+---
+
+# Finex — contexto obrigatório
+
+Antes de implementar, consultar **`PROJECT.md`** na raiz (definição, domínio, camadas e checklist).
+
+## Resumo operacional
+
+- App de controle financeiro (Kaio / Gabriela / Ambos); SPA React + TS + Vite + Tailwind; persistência via `apiService` → `window.storage` (localStorage).
+- Camadas: `views` → `contexts` → `hooks` → `services/api` → `storage`. Não pular camadas.
+- Tipos de domínio em `src/types/index.ts`. UI reutilizável em `src/components/ui` + `design-system`.
+- Não editar o legado `src/financial_control_system.tsx` para features novas.
+- Feature nova: tipos → serviço → hook → context → view/App, conforme seção 7 do `PROJECT.md`.
+- UI e comunicação com o usuário em português. Diff mínimo; sem backend/PWA/deps extras sem pedido.
